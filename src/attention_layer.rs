@@ -8,8 +8,8 @@ pub struct AttentionLayer {
 
 impl AttentionLayer {
     pub fn new() -> Self {
-        let dim = 32 as usize;
-        let head_dim = 32 as usize;
+        let dim = 32_usize;
+        let head_dim = 32_usize;
         AttentionLayer {
             mq: Array2::zeros((dim, head_dim)),
             mk: Array2::zeros((dim, head_dim)),

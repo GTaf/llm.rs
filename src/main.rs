@@ -6,7 +6,6 @@ use safetensors::tensor::SafeTensors;
 
 mod attention_layer;
 mod linear_layer;
-use crate::attention_layer::AttentionLayer;
 
 struct EmbeddingLayer {
     table: HashMap<u32, Vec<u32>>,
