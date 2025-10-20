@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 ndarray = "0.16.1"
 tiktoken-rs = "0.7.0"
+safetensors = "0.6.2"

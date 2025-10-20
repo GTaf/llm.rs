@@ -1,6 +1,12 @@
 use ndarray::Array1;
-use std::collections::HashMap;
+use std::{collections::HashMap, fs};
 use tiktoken_rs::r50k_base;
+
+use safetensors::tensor::SafeTensors;
+
+mod attention_layer;
+mod linear_layer;
+use crate::attention_layer::AttentionLayer;
 
 struct EmbeddingLayer {
     table: HashMap<u32, Vec<u32>>,
@@ -13,10 +19,6 @@ impl EmbeddingLayer {
             table: HashMap::new(),
             dimension,
         }
-    }
-
-    fn run_single(self, _index: &u32) -> Array1<f32> {
-        Array1::zeros(self.dimension as usize)
     }
 
     fn run(self, index: &[u32]) -> Vec<Array1<f32>> {
@@ -56,6 +58,12 @@ fn add_positionnal_embedding(config: Config, embeddings: &mut [Array1<f32>]) {
     }
 }
 
+fn load_weights() {
+    let bytes = fs::read("model.safetensors").unwrap();
+    let safetensor = SafeTensors::deserialize(&bytes).unwrap();
+    println!("{:?}", safetensor.names());
+}
+
 fn main() {
     let config = Config::default();
 
@@ -66,6 +74,8 @@ fn main() {
     let embedding_layer = EmbeddingLayer::new(config.emb_dim);
     let mut embeddings = embedding_layer.run(&tokens);
     add_positionnal_embedding(config, &mut embeddings);
+
+    load_weights();
 
     println!("{}", tokens.len());
     println!("{}", tokens[0]);
