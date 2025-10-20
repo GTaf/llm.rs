@@ -1,5 +1,9 @@
+# References
+Global architecture : https://medium.com/@hsinhungw/gpt-2-detailed-model-architecture-6b1aad33d16b
+
 # TODO
 - [x] Use tiktoken encoder to tranform sentence to tokens list
-- [ ] Find position embedding formula and add matrices together
+- [ ] Need to find token -> embedding mapping in GPT-2
+- [x] Find position embedding formula and add matrices together
 - [ ] Find how the layer norm works, it's the first layer
 - [ ] Create a linear layer pass
