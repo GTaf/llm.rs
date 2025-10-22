@@ -27,12 +27,14 @@ impl<'a> EmbeddingLayer<'a> {
             .chunks_exact(4)
             .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
             .collect();
+        println!("WPE sizes : {} {:?}", wpe_f32.len(), wpe.shape());
 
         let wte_f32: Vec<f32> = wte
             .data()
             .chunks_exact(4)
             .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
             .collect();
+        println!("WTE sizes : {} {:?}", wte_f32.len(), wte.shape());
 
         EmbeddingLayer {
             table: HashMap::new(),
@@ -50,7 +52,7 @@ impl<'a> EmbeddingLayer<'a> {
             result.push(Array1::zeros(self.dimension as usize));
             for i in 0..self.dimension {
                 result[p][i] += self.wpe_f32[p * self.dimension + i];
-                result[p][i] += self.wte_f32[tokens[p] as usize];
+                // result[p][i] += self.wte_f32[tokens[p] as usize];
             }
         }
         result
