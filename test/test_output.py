@@ -26,4 +26,4 @@ with torch.no_grad():
 
     # Combined (what actually goes into the model)
     combined = token_embeddings + position_embeddings
-    print("\nCombined embeddings:\n", combined[0][0][0])
+    print("\nCombined embeddings:\n", combined[0][0])

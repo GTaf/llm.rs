@@ -4,7 +4,11 @@ use tiktoken_rs::r50k_base;
 
 use safetensors::tensor::{SafeTensors, TensorView};
 
+use crate::attention_block::AttentionBlock;
+
+mod attention_block;
 mod attention_layer;
+mod layer_norm;
 mod linear_layer;
 
 struct EmbeddingLayer {
@@ -25,12 +29,7 @@ fn weights_to_array<'a>(tensor: &TensorView<'a>) -> Array2<f32> {
 
 impl EmbeddingLayer {
     pub fn new(dimension: usize, wte: TensorView, wpe: TensorView) -> Self {
-        println!("Shape positionnal {:?} {:?}", wpe.shape(), wpe.dtype());
-        println!("Emb positionnal {:?}", wte.shape());
-
-        // let wpe_f32: &[f32] = bytemuck::cast_slice(wpe.data());
         let wpe_f32 = weights_to_array(&wpe);
-
         let wte_f32 = weights_to_array(&wte);
 
         EmbeddingLayer {
@@ -67,32 +66,24 @@ impl Default for Config {
     }
 }
 
-fn load_weights(bytes: &[u8]) -> SafeTensors<'_> {
-    let safetensor = SafeTensors::deserialize(bytes).unwrap();
-    println!(
-        "Shape {:?}",
-        safetensor.tensor("wpe.weight").unwrap().shape()
-    );
-    safetensor
-}
-
-fn main() {
+fn main() -> anyhow::Result<()> {
     let config = Config::default();
-    let bytes = fs::read("model.safetensors").unwrap();
-    let tensor_weights = load_weights(&bytes);
+    let bytes = fs::read("model.safetensors")?;
+    let tensor_weights = SafeTensors::deserialize(&bytes)?;
 
-    let tokenizer = r50k_base().unwrap();
+    let tokenizer = r50k_base()?;
     let tokens =
         tokenizer.encode_with_special_tokens("The main character of The lord of the rings is ");
 
     let embedding_layer = EmbeddingLayer::new(
         config.emb_dim,
-        tensor_weights.tensor("wte.weight").unwrap(),
-        tensor_weights.tensor("wpe.weight").unwrap(),
+        tensor_weights.tensor("wte.weight")?,
+        tensor_weights.tensor("wpe.weight")?,
     );
     let embeddings = embedding_layer.run(&tokens);
 
-    println!("{}", tokens.len());
+    let first_block = AttentionBlock::new(tensor_weights, 0);
     println!("{}", tokens[0]);
     println!("{}", embeddings[0]);
+    Ok(())
 }
