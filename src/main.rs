@@ -11,6 +11,7 @@ mod attention_layer;
 mod embedding_layer;
 mod layer_norm;
 mod linear_layer;
+mod tools;
 
 struct Config {
     _vocab_size: u32,
