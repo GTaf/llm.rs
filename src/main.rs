@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         config.emb_dim,
         tensor_weights.tensor("wte.weight")?,
         tensor_weights.tensor("wpe.weight")?,
-    );
+    )?;
     let embeddings = embedding_layer.run(&tokens);
 
     let first_block = AttentionBlock::new(tensor_weights, 0)?;

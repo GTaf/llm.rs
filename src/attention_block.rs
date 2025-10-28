@@ -26,17 +26,18 @@ impl AttentionBlock {
         let layer_norm_weights_2 = tensor_weights.tensor(&format!("h.{index}.ln_2.weight"))?;
         let layer_norm_bias_2 = tensor_weights.tensor(&format!("h.{index}.ln_2.bias"))?;
 
-        let attn_weights_1 = tensor_weights.tensor(&format!("h.{index}.attn.c_attn.weight"))?;
-        let attn_bias_1 = tensor_weights.tensor(&format!("h.{index}.attn.c_attn.bias"))?;
+        let mlp_weights_1 = tensor_weights.tensor(&format!("h.{index}.mlp.c_fc.weight"))?;
+        let mlp_bias_1 = tensor_weights.tensor(&format!("h.{index}.mlp.c_fc.bias"))?;
 
-        let attn_weights_proj = tensor_weights.tensor(&format!("h.{index}.attn.c_proj.weight"))?;
-        let attn_bias_proj = tensor_weights.tensor(&format!("h.{index}.attn.c_proj.bias"))?;
+        let mlp_weights_proj = tensor_weights.tensor(&format!("h.{index}.mlp.c_proj.weight"))?;
+        let mlp_bias_proj = tensor_weights.tensor(&format!("h.{index}.mlp.c_proj.bias"))?;
+
         Ok(Self {
             attention_layer: AttentionLayer::new(),
             layer_norm1: LayerNorm::new(layer_norm_weights_1, layer_norm_bias_1),
             layer_norm2: LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2),
-            linear_1: LinearLayer::new(attn_weights_1, attn_bias_1),
-            linear_2: LinearLayer::new(attn_weights_proj, attn_bias_proj),
+            linear_1: LinearLayer::new(mlp_weights_1, mlp_bias_1)?,
+            linear_2: LinearLayer::new(mlp_weights_proj, mlp_bias_proj)?,
         })
     }
 

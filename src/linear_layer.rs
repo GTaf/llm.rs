@@ -8,11 +8,11 @@ pub struct LinearLayer {
 }
 
 impl LinearLayer {
-    pub fn new(weights: TensorView, bias: TensorView) -> Self {
-        Self {
-            weight: weights_to_array(&weights),
-            bias: weights_to_array(&bias),
-        }
+    pub fn new(weights: TensorView, bias: TensorView) -> anyhow::Result<Self> {
+        Ok(Self {
+            weight: weights_to_array(&weights)?,
+            bias: weights_to_array(&bias)?,
+        })
     }
 
     pub fn run(self, input: Array2<f32>) -> Array2<f32> {

@@ -1,14 +1,16 @@
 use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
 
-pub fn weights_to_array<'a>(tensor: &TensorView<'a>) -> Array2<f32> {
+pub fn weights_to_array<'a>(tensor: &TensorView<'a>) -> anyhow::Result<Array2<f32>> {
     let bytes = tensor.data();
     let mut aligned = Vec::<u8>::with_capacity(bytes.len());
     aligned.extend_from_slice(bytes);
-    let floats = bytemuck::cast_slice(&aligned);
+    let floats: &[f32] = bytemuck::cast_slice(&aligned);
 
-    Array2::from_shape_vec((tensor.shape()[0], tensor.shape()[1]), floats.to_vec())
-        .expect("Unable to create Array from vec")
+    Ok(Array2::from_shape_vec(
+        (tensor.shape()[0], tensor.shape()[1]),
+        floats.to_vec(),
+    )?)
 }
 
 pub fn weights_to_array1<'a>(tensor: &TensorView<'a>) -> Array1<f32> {

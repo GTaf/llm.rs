@@ -10,15 +10,15 @@ pub struct EmbeddingLayer {
 }
 
 impl EmbeddingLayer {
-    pub fn new(dimension: usize, wte: TensorView, wpe: TensorView) -> Self {
-        let wpe_f32 = weights_to_array(&wpe);
-        let wte_f32 = weights_to_array(&wte);
+    pub fn new(dimension: usize, wte: TensorView, wpe: TensorView) -> anyhow::Result<Self> {
+        let wpe_f32 = weights_to_array(&wpe)?;
+        let wte_f32 = weights_to_array(&wte)?;
 
-        EmbeddingLayer {
+        Ok(EmbeddingLayer {
             dimension,
             wte_f32,
             wpe_f32,
-        }
+        })
     }
 
     pub fn run(self, tokens: &[u32]) -> Array2<f32> {
