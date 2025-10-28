@@ -4,51 +4,13 @@ use tiktoken_rs::r50k_base;
 
 use safetensors::tensor::{SafeTensors, TensorView};
 
-use crate::attention_block::AttentionBlock;
+use crate::{attention_block::AttentionBlock, embedding_layer::EmbeddingLayer};
 
 mod attention_block;
 mod attention_layer;
+mod embedding_layer;
 mod layer_norm;
 mod linear_layer;
-
-struct EmbeddingLayer {
-    dimension: usize,
-    wpe_f32: Array2<f32>,
-    wte_f32: Array2<f32>,
-}
-
-fn weights_to_array<'a>(tensor: &TensorView<'a>) -> Array2<f32> {
-    let bytes = tensor.data();
-    let mut aligned = Vec::<u8>::with_capacity(bytes.len());
-    aligned.extend_from_slice(bytes);
-    let floats = bytemuck::cast_slice(&aligned);
-
-    Array2::from_shape_vec((tensor.shape()[0], tensor.shape()[1]), floats.to_vec())
-        .expect("Unable to create Array from vec")
-}
-
-impl EmbeddingLayer {
-    pub fn new(dimension: usize, wte: TensorView, wpe: TensorView) -> Self {
-        let wpe_f32 = weights_to_array(&wpe);
-        let wte_f32 = weights_to_array(&wte);
-
-        EmbeddingLayer {
-            dimension,
-            wte_f32,
-            wpe_f32,
-        }
-    }
-
-    fn run(self, tokens: &[u32]) -> Vec<Array1<f32>> {
-        let mut result = Vec::new();
-        for p in 0..tokens.len() {
-            result.push(Array1::<f32>::zeros(self.dimension));
-            result[p].scaled_add(1., &self.wpe_f32.row(p));
-            result[p].scaled_add(1., &self.wte_f32.row(tokens[p] as usize));
-        }
-        result
-    }
-}
 
 struct Config {
     _vocab_size: u32,
@@ -82,8 +44,12 @@ fn main() -> anyhow::Result<()> {
     );
     let embeddings = embedding_layer.run(&tokens);
 
-    let first_block = AttentionBlock::new(tensor_weights, 0);
+    let first_block = AttentionBlock::new(tensor_weights, 0)?;
+    // let output = first_block.run(&embeddings);
     println!("{}", tokens[0]);
-    println!("{}", embeddings[0]);
+    println!("{}", embeddings.row(0));
     Ok(())
 }
+
+#[test]
+fn test_emebdding() {}
