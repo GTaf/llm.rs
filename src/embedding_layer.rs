@@ -23,11 +23,11 @@ impl EmbeddingLayer {
 
     pub fn run(self, tokens: &[u32]) -> Array2<f32> {
         let mut result = Array2::zeros((tokens.len(), self.dimension));
-        for p in 0..tokens.len() {
+        for (p, token) in tokens.iter().enumerate() {
             result.row_mut(p).scaled_add(1., &self.wpe_f32.row(p));
             result
                 .row_mut(p)
-                .scaled_add(1., &self.wte_f32.row(tokens[p] as usize));
+                .scaled_add(1., &self.wte_f32.row(*token as usize));
         }
         result
     }

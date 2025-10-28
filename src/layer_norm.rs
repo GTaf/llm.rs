@@ -1,5 +1,3 @@
-use std::clone;
-
 use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
 
@@ -20,7 +18,7 @@ impl LayerNorm {
 
     pub fn run(self, input: &Array2<f32>) -> Array2<f32> {
         let mut result = Array2::zeros((input.shape()[0], input.shape()[1]));
-        let iter = result.rows_mut().into_iter().zip(input.rows().into_iter());
+        let iter = result.rows_mut().into_iter().zip(input.rows());
         for (mut res_vec, input_vec) in iter {
             let mean = input_vec.mean().unwrap();
             let var = input_vec.std(0_f32).powi(2);

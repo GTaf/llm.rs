@@ -1,8 +1,7 @@
-use ndarray::{Array1, Array2};
 use std::fs;
 use tiktoken_rs::r50k_base;
 
-use safetensors::tensor::{SafeTensors, TensorView};
+use safetensors::tensor::SafeTensors;
 
 use crate::{attention_block::AttentionBlock, embedding_layer::EmbeddingLayer};
 
@@ -46,9 +45,10 @@ fn main() -> anyhow::Result<()> {
     let embeddings = embedding_layer.run(&tokens);
 
     let first_block = AttentionBlock::new(tensor_weights, 0)?;
-    // let output = first_block.run(&embeddings);
+    let output = first_block.run(&embeddings);
     println!("{}", tokens[0]);
     println!("{}", embeddings.row(0));
+    println!("{}", output.row(0));
     Ok(())
 }
 
