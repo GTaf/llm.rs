@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2, Axis};
 use safetensors::tensor::TensorView;
 
 use crate::tools::weights_to_array1;
@@ -18,15 +18,22 @@ impl LayerNorm {
 
     pub fn run(&self, input: &Array2<f32>) -> Array2<f32> {
         let mut result = Array2::zeros((input.shape()[0], input.shape()[1]));
-        let iter = result.rows_mut().into_iter().zip(input.rows());
-        for (mut res_vec, input_vec) in iter {
-            let mean = input_vec.mean().unwrap();
-            let var = input_vec.std(0_f32).powi(2);
-            res_vec.assign(&input_vec);
-            res_vec.scaled_add(-mean, &Array1::ones(input.shape()[1]));
-            res_vec /= (var + 1e-05).sqrt();
-            res_vec *= &self.weight;
-            res_vec += &self.bias;
+        for (i, input_row) in input.axis_iter(Axis(0)).enumerate() {
+            let n = input_row.len() as f32;
+
+            // Calculer mean
+            let mean = input_row.mean().unwrap();
+
+            // Calculer variance (diviseur n, pas n-1)
+            let var = input_row.mapv(|x| (x - mean).powi(2)).sum() / n;
+
+            // Normalisation : (x - mean) / sqrt(var + eps)
+            let normalized = input_row.mapv(|x| (x - mean) / (var + 1e-5).sqrt());
+
+            // Appliquer weight et bias (element-wise)
+            result
+                .row_mut(i)
+                .assign(&(&normalized * &self.weight + &self.bias));
         }
 
         result

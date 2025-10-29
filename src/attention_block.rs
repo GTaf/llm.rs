@@ -12,12 +12,12 @@ fn gelu(x: &f32) -> f32 {
 }
 
 pub struct AttentionBlock {
-    layer_norm1: LayerNorm,
-    attention_layer: AttentionLayer,
-    linear_proj: LinearLayer,
-    layer_norm2: LayerNorm,
-    linear_1: LinearLayer,
-    linear_2: LinearLayer,
+    pub layer_norm1: LayerNorm,
+    pub attention_layer: AttentionLayer,
+    pub linear_proj: LinearLayer,
+    pub layer_norm2: LayerNorm,
+    pub linear_1: LinearLayer,
+    pub linear_2: LinearLayer,
 }
 
 impl AttentionBlock {
