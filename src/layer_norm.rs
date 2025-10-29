@@ -9,11 +9,11 @@ pub struct LayerNorm {
 }
 
 impl LayerNorm {
-    pub fn new(weights: TensorView, bias: TensorView) -> Self {
-        Self {
-            bias: weights_to_array1(&bias),
-            weight: weights_to_array1(&weights),
-        }
+    pub fn new(weights: TensorView, bias: TensorView) -> anyhow::Result<Self> {
+        Ok(Self {
+            bias: weights_to_array1(&bias)?,
+            weight: weights_to_array1(&weights)?,
+        })
     }
 
     pub fn run(self, input: &Array2<f32>) -> Array2<f32> {
@@ -25,10 +25,10 @@ impl LayerNorm {
             res_vec.assign(&input_vec);
             res_vec.scaled_add(-mean, &Array1::ones(input.shape()[1]));
             res_vec /= (var + 1e-05).sqrt();
+            res_vec *= &self.weight;
+            res_vec += &self.bias;
         }
 
-        result.dot(&self.weight);
-        result.scaled_add(1_f32, &self.bias);
         result
     }
 }

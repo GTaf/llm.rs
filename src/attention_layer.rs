@@ -8,8 +8,8 @@ pub struct AttentionLayer {
 
 impl AttentionLayer {
     pub fn new() -> Self {
-        let dim = 32_usize;
-        let head_dim = 32_usize;
+        let dim = 768_usize;
+        let head_dim = 768_usize;
         AttentionLayer {
             mq: Array2::zeros((dim, head_dim)),
             mk: Array2::zeros((dim, head_dim)),
@@ -33,9 +33,12 @@ impl AttentionLayer {
     }
 
     pub fn run(self, input: Array2<f32>) -> Array2<f32> {
-        let q = self.mq.dot(&input);
-        let k = self.mk.dot(&input);
-        let v = self.mv.dot(&input);
+        let ishape = input.shape();
+        let sshape = self.mq.shape();
+        println!("input size {:?}, insicde size {:?}", ishape, sshape);
+        let q = input.dot(&self.mq);
+        let k = input.dot(&self.mk);
+        let v = input.dot(&self.mv);
         let mut attention = q.dot(&k.t());
         Self::softmax(&mut attention);
         attention /= (self.head_dim as f32).sqrt();
