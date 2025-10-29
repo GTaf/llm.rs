@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use std::fs;
 use tiktoken_rs::r50k_base;
 
@@ -52,5 +53,38 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Deserialize, Debug)]
+struct Embeddings {
+    #[serde(rename = "Token embeddings")]
+    token_embeddings: Vec<f32>,
+    #[serde(rename = "Position embeddings")]
+    position_embeddings: Vec<f32>,
+    #[serde(rename = "Combined embeddings")]
+    combined_embeddings: Vec<f32>,
+}
+
 #[test]
-fn test_emebdding() {}
+fn test_embedding() -> anyhow::Result<()> {
+    let data = fs::read_to_string("test/test_data.dump").unwrap();
+    let emb: Embeddings = serde_json::from_str(&data).unwrap();
+
+    let config = Config::default();
+    let bytes = fs::read("model.safetensors")?;
+    let tensor_weights = SafeTensors::deserialize(&bytes)?;
+
+    let tokenizer = r50k_base()?;
+    let tokens =
+        tokenizer.encode_with_special_tokens("The main character of The lord of the rings is ");
+
+    let embedding_layer = EmbeddingLayer::new(
+        config.emb_dim,
+        tensor_weights.tensor("wte.weight")?,
+        tensor_weights.tensor("wpe.weight")?,
+    )?;
+    let embeddings = embedding_layer.run(&tokens);
+    assert_eq!(
+        embeddings.row(0),
+        ndarray::Array1::from(emb.combined_embeddings)
+    );
+    Ok(())
+}

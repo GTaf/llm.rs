@@ -224,6 +224,8 @@ dependencies = [
  "bytemuck",
  "ndarray",
  "safetensors",
+ "serde",
+ "serde_json",
  "tiktoken-rs",
 ]
 
