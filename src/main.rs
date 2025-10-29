@@ -38,14 +38,10 @@ fn main() -> anyhow::Result<()> {
     let tokens =
         tokenizer.encode_with_special_tokens("The main character of The lord of the rings is ");
 
-    let embedding_layer = EmbeddingLayer::new(
-        config.emb_dim,
-        tensor_weights.tensor("wte.weight")?,
-        tensor_weights.tensor("wpe.weight")?,
-    )?;
+    let embedding_layer = EmbeddingLayer::new(&tensor_weights)?;
     let embeddings = embedding_layer.run(&tokens);
 
-    let first_block = AttentionBlock::new(tensor_weights, 0)?;
+    let first_block = AttentionBlock::new(&tensor_weights, 0)?;
     let output = first_block.run(&embeddings);
     println!("{}", tokens[0]);
     println!("{}", embeddings.row(0));
@@ -76,11 +72,7 @@ fn test_embedding() -> anyhow::Result<()> {
     let tokens =
         tokenizer.encode_with_special_tokens("The main character of The lord of the rings is ");
 
-    let embedding_layer = EmbeddingLayer::new(
-        config.emb_dim,
-        tensor_weights.tensor("wte.weight")?,
-        tensor_weights.tensor("wpe.weight")?,
-    )?;
+    let embedding_layer = EmbeddingLayer::new(&tensor_weights)?;
     let embeddings = embedding_layer.run(&tokens);
     assert_eq!(
         embeddings.row(0),

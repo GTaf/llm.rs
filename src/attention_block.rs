@@ -21,7 +21,7 @@ pub struct AttentionBlock {
 }
 
 impl AttentionBlock {
-    pub fn new(tensor_weights: SafeTensors, index: usize) -> anyhow::Result<Self> {
+    pub fn new(tensor_weights: &SafeTensors, index: usize) -> anyhow::Result<Self> {
         let layer_norm_weights_1 = tensor_weights.tensor(&format!("h.{index}.ln_1.weight"))?;
         let layer_norm_bias_1 = tensor_weights.tensor(&format!("h.{index}.ln_1.bias"))?;
         let layer_norm_weights_2 = tensor_weights.tensor(&format!("h.{index}.ln_2.weight"))?;
