@@ -46,7 +46,7 @@ impl AttentionBlock {
         })
     }
 
-    pub fn run(self, input: &Array2<f32>) -> Array2<f32> {
+    pub fn run(&self, input: &Array2<f32>) -> Array2<f32> {
         let mut step = self.layer_norm1.run(input);
         step = self.attention_layer.run(step);
         step = self.linear_proj.run(step);

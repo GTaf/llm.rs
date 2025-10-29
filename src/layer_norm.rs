@@ -16,7 +16,7 @@ impl LayerNorm {
         })
     }
 
-    pub fn run(self, input: &Array2<f32>) -> Array2<f32> {
+    pub fn run(&self, input: &Array2<f32>) -> Array2<f32> {
         let mut result = Array2::zeros((input.shape()[0], input.shape()[1]));
         let iter = result.rows_mut().into_iter().zip(input.rows());
         for (mut res_vec, input_vec) in iter {

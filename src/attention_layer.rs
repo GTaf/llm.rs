@@ -32,7 +32,7 @@ impl AttentionLayer {
         }
     }
 
-    pub fn run(self, input: Array2<f32>) -> Array2<f32> {
+    pub fn run(&self, input: Array2<f32>) -> Array2<f32> {
         let ishape = input.shape();
         let sshape = self.mq.shape();
         println!("input size {:?}, insicde size {:?}", ishape, sshape);
