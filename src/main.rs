@@ -7,11 +7,11 @@ use safetensors::tensor::SafeTensors;
 use crate::gpt2::GPT2;
 
 mod attention_block;
-mod attention_layer;
 mod embedding_layer;
 mod gpt2;
 mod layer_norm;
 mod linear_layer;
+mod self_attention;
 mod tools;
 
 fn main() -> anyhow::Result<()> {

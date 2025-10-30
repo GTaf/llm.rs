@@ -29,7 +29,7 @@ with torch.no_grad():
     combined = token_embeddings + position_embeddings
     saving_dict["Combined embeddings"] = combined[0][0].tolist()
 
-    first_layer_first_norm = model.h[0].ln_1(combined)
+    first_layer_first_norm = model.h[0].ln_1(combined)  # pyright: ignore[reportCallIssue]
     saving_dict["First layer norm"] = first_layer_first_norm[0][0].tolist()
 
     with open("test/test_data.dump", "w") as f:

@@ -15,7 +15,7 @@ impl LinearLayer {
         })
     }
 
-    pub fn run(&self, input: Array2<f32>) -> Array2<f32> {
+    pub fn run(&self, input: &Array2<f32>) -> Array2<f32> {
         input.dot(&self.weight) + &self.bias
     }
 }
