@@ -6,7 +6,7 @@ use safetensors::SafeTensors;
 use crate::layer_norm::LayerNorm;
 use crate::{linear_layer::LinearLayer, self_attention::SelfAttention};
 
-fn gelu(x: &f32) -> f32 {
+pub fn gelu(x: &f32) -> f32 {
     let alpha = x + 0.044715_f32 * x.powi(3);
     0.5_f32 * x * (1. + (f32::consts::FRAC_2_PI.sqrt() * alpha).tanh())
 }
@@ -37,6 +37,8 @@ impl AttentionBlock {
         let mlp_weights_proj = tensor_weights.tensor(&format!("h.{index}.mlp.c_proj.weight"))?;
         let mlp_bias_proj = tensor_weights.tensor(&format!("h.{index}.mlp.c_proj.bias"))?;
 
+        let causal_weights = tensor_weights.tensor(&format!("h.{index}.attn.bias"))?;
+
         Ok(Self {
             layer_norm1: LayerNorm::new(layer_norm_weights_1, layer_norm_bias_1)?,
             attention_layer: SelfAttention::new(
@@ -44,6 +46,7 @@ impl AttentionBlock {
                 linproj_bias,
                 attn_weights,
                 attn_bias,
+                causal_weights,
             )?,
             layer_norm2: LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?,
             linear_1: LinearLayer::new(mlp_weights_1, mlp_bias_1)?,
@@ -51,14 +54,14 @@ impl AttentionBlock {
         })
     }
 
-    pub fn run(&self, input: &Array2<f32>) -> Array2<f32> {
+    pub fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         let mut step = self.layer_norm1.run(input);
-        step = self.attention_layer.run(&step);
+        step = self.attention_layer.run(&step)?;
         step += input;
         let mut step_2 = self.layer_norm2.run(&step);
-        step_2 = self.linear_1.run(&step_2);
+        step_2 = self.linear_1.run(&step_2)?;
         step_2 = step_2.map(gelu);
-        step_2 = self.linear_2.run(&step_2);
-        step_2 + step
+        step_2 = self.linear_2.run(&step_2)?;
+        Ok(step_2 + step)
     }
 }
