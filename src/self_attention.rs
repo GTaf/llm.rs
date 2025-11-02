@@ -63,7 +63,6 @@ impl SelfAttention {
         let mut k_split = k.to_shape([token_len, self.head_number, head_dim])?;
         let mut v_split = v.to_shape([token_len, self.head_number, head_dim])?;
         let mut q_split = q.to_shape([token_len, self.head_number, head_dim])?;
-        println!("Actual shape : {:?}", self.causal_mask.shape());
         let mask_split = self.causal_mask.slice(s![0..token_len, 0..token_len]);
         q_split.swap_axes(1, 0);
         k_split.swap_axes(1, 0);
@@ -86,6 +85,6 @@ impl SelfAttention {
         attention.swap_axes(1, 0);
         let attention = attention.to_shape((token_len, embeddings_dim))?.to_owned();
 
-        Ok(self.linear_project.run(&attention)?)
+        self.linear_project.run(&attention)
     }
 }

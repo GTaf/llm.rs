@@ -15,6 +15,12 @@ impl LinearLayer {
         })
     }
 
+    pub fn new_no_bias(weights: TensorView) -> anyhow::Result<Self> {
+        let weight = weights_to_array(&weights)?.t().to_owned();
+        let bias = Array1::zeros(weight.shape()[1]);
+        Ok(Self { weight, bias })
+    }
+
     pub fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         Ok(input.dot(&self.weight) + &self.bias)
     }

@@ -1,13 +1,10 @@
-use std::fs;
-
+use ndarray::Array1;
 use safetensors::SafeTensors;
 use serde::Deserialize;
+use std::fs;
 use tiktoken_rs::r50k_base;
 
-use crate::{
-    attention_block::{self, gelu},
-    gpt2::GPT2,
-};
+use crate::{attention_block::gelu, gpt2::GPT2};
 
 #[derive(Deserialize, Debug)]
 struct Embeddings {
@@ -32,8 +29,13 @@ struct Embeddings {
 
     #[serde(rename = "First layer gelu")]
     first_layer_gelu: Vec<f32>,
+    #[serde(rename = "First layer mlp 2")]
+    first_layer_mlp2: Vec<f32>,
+    #[serde(rename = "First layer full manual")]
+    first_layer_full_manual: Vec<f32>,
 }
 
+#[cfg(test)]
 fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
     let data = fs::read_to_string("test/test_data.dump").unwrap();
     let emb: Embeddings = serde_json::from_str(&data).unwrap();
@@ -49,6 +51,7 @@ fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
     Ok((model, tokens, emb))
 }
 
+#[cfg(test)]
 fn test_proximity_threshold<'a, T, U>(a: U, b: T, threshold: f32) -> bool
 where
     T: IntoIterator<Item = &'a f32>,
@@ -56,7 +59,7 @@ where
 {
     a.into_iter()
         .zip(b.into_iter())
-        .all(|(x, y)| (x - y).abs() <= threshold)
+        .all(|(x, y)| (x - y).abs() / y <= threshold)
 }
 
 #[test]
@@ -116,7 +119,7 @@ fn test_layer_attention() -> anyhow::Result<()> {
     let output = attention_block.attention_layer.run(&output)?;
     let tested_row = output.row(0);
     println!(
-        "{:?}\n{:?}\n{:?}",
+        "{:?}\nrust out {:?}\n python out {:?}",
         tested_row.shape(),
         tested_row[0],
         emb.first_layer_attention[0]
@@ -191,12 +194,84 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
 }
 
 #[test]
+fn test_layer_mlp_mlp2() -> anyhow::Result<()> {
+    let (model, tokens, emb) = test_setup()?;
+    let embeddings = model.embedding_layer.run(&tokens);
+    let attention_block = model.attention_blocks.get(0).unwrap();
+    let output = attention_block.layer_norm1.run(&embeddings);
+    let output = attention_block.attention_layer.run(&output)?;
+    let output = attention_block.layer_norm2.run(&(output + embeddings));
+    let mlp_output = attention_block.linear_1.run(&output)?;
+    let mlp_output = mlp_output.map(gelu);
+    let mlp_output = attention_block.linear_2.run(&mlp_output)?;
+    let tested_row = mlp_output.row(0);
+
+    println!(
+        "{:?}\n{:?}\n{:?}",
+        tested_row.shape(),
+        tested_row[0],
+        emb.first_layer_mlp2[0]
+    );
+    assert!(test_proximity_threshold(
+        tested_row,
+        &emb.first_layer_mlp2,
+        1e-4
+    ));
+    Ok(())
+}
+
+#[test]
+fn test_layer_mlp_full_manual() -> anyhow::Result<()> {
+    let (model, tokens, emb) = test_setup()?;
+    let embeddings = model.embedding_layer.run(&tokens);
+    let attention_block = model.attention_blocks.get(0).unwrap();
+    let output = attention_block.layer_norm1.run(&embeddings);
+    let attention_output = attention_block.attention_layer.run(&output)?;
+    let intermediate = attention_output.clone() + &embeddings;
+    let norm2_output = attention_block.layer_norm2.run(&intermediate);
+    let mlp_output = attention_block.linear_1.run(&norm2_output)?;
+    let mlp_output = mlp_output.map(gelu);
+    let mlp_output = attention_block.linear_2.run(&mlp_output)?;
+    println!(
+        "emb_rust : {:?}\n emb python : {:?}\n\nattn_out rust : {:?}\n attn out python : {:?}\n\nskip conn output rust : {:?}\n skip con python : {:?}\n\nmlp out rust : {:?}\nmlp_output_python : {:?}",
+        embeddings.row(0)[0],
+        &emb.combined_embeddings[0],
+        attention_output.row(0)[0],
+        emb.first_layer_attention[0],
+        intermediate.row(0)[0],
+        (Array1::from_vec(emb.first_layer_attention.clone())
+            + Array1::from_vec(emb.combined_embeddings.clone()))[0],
+        mlp_output.row(0)[0],
+        emb.first_layer_mlp2[0]
+    );
+    let mlp_output = mlp_output + intermediate;
+    let tested_row = mlp_output.row(0);
+
+    println!(
+        "{:?}\n{:?}\n{:?}",
+        tested_row.shape(),
+        tested_row[0],
+        emb.first_layer_full_manual[0]
+    );
+    assert!(!test_proximity_threshold(
+        tested_row,
+        &emb.first_layer_full_manual,
+        1e-4
+    ));
+    Ok(())
+}
+
+#[test]
 fn test_layer_full() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
     let output = attention_block.run(&embeddings)?;
     let tested_row = output.row(0);
+    println!(
+        "Rust {:?}\nPython : {:?}",
+        tested_row[0], emb.first_layer_full[0]
+    );
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_full,

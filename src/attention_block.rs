@@ -7,8 +7,9 @@ use crate::layer_norm::LayerNorm;
 use crate::{linear_layer::LinearLayer, self_attention::SelfAttention};
 
 pub fn gelu(x: &f32) -> f32 {
-    let alpha = x + 0.044715_f32 * x.powi(3);
-    0.5_f32 * x * (1. + (f32::consts::FRAC_2_PI.sqrt() * alpha).tanh())
+    // 0.5 * x * (1.0 + ((2.0 / f32::consts::PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh())
+    // x * normal_cdf(x)
+    0.5 * x * (1.0 + libm::erff(x / 2.0_f32.sqrt()))
 }
 
 pub struct AttentionBlock {

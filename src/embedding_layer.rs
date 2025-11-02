@@ -18,7 +18,7 @@ impl EmbeddingLayer {
         Ok(EmbeddingLayer { wte_f32, wpe_f32 })
     }
 
-    pub fn run(self, tokens: &[u32]) -> Array2<f32> {
+    pub fn run(&self, tokens: &[u32]) -> Array2<f32> {
         let dimension = self.wpe_f32.shape()[1];
         let mut result = Array2::zeros((tokens.len(), dimension));
         for (p, token) in tokens.iter().enumerate() {
