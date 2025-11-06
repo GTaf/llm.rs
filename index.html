@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>GPT2.rs</title>
+    </head>
+    <body>
+        <h1>GPT2.rs</h1>
+        <textarea
+            id="inputText"
+            rows="4"
+            cols="60"
+            placeholder="Enter text here..."
+        >
+Once upon a time</textarea
+        >
+        <br />
+        <button id="runButton">Run</button>
+        <h2>Output</h2>
+        <pre id="outputArea"></pre>
+        <div id="statusArea" style="color: blue; margin-top: 10px"></div>
+
+        <script type="module">
+            import init, { run_web } from "./pkg/rusty_gpt2.js";
+
+            async function main() {
+                await init();
+
+                document
+                    .getElementById("runButton")
+                    .addEventListener("click", async () => {
+                        const statusArea =
+                            document.getElementById("statusArea");
+                        const outputArea =
+                            document.getElementById("outputArea");
+
+                        try {
+                            statusArea.textContent = "Loading model...";
+                            statusArea.style.color = "blue";
+
+                            const input =
+                                document.getElementById("inputText").value;
+
+                            // Fetch the model
+                            const response = await fetch("/model.safetensors");
+                            if (!response.ok) {
+                                throw new Error(
+                                    `HTTP error! status: ${response.status}`,
+                                );
+                            }
+
+                            statusArea.textContent =
+                                "Model loaded, processing...";
+
+                            const arrayBuffer = await response.arrayBuffer();
+                            const modelBytes = new Uint8Array(arrayBuffer);
+
+                            console.log(`Input: "${input}"`);
+                            console.log(
+                                `Model size: ${modelBytes.length} bytes`,
+                            );
+
+                            // Call WASM function (NOT async - remove await)
+                            const output = run_web(input, modelBytes);
+
+                            // Display output
+                            outputArea.textContent = output;
+                            statusArea.textContent = "Done!";
+                            statusArea.style.color = "green";
+                        } catch (error) {
+                            console.error("Error:", error);
+                            outputArea.textContent = `Error: ${error.message || error}`;
+                            statusArea.textContent = "Error occurred!";
+                            statusArea.style.color = "red";
+                        }
+                    });
+            }
+
+            main();
+        </script>
+    </body>
+</html>

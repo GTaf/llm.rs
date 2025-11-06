@@ -17,7 +17,6 @@ fn apply_causal_mask(attn_scores: &Array2<f32>, mask: &Array2<f32>) -> Array2<f3
             result[[i, j]] = f32::NEG_INFINITY; // ou -1e10
         }
     }
-
     result
 }
 
