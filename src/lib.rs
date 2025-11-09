@@ -10,6 +10,7 @@ use crate::gpt2::GPT2;
 mod attention_block;
 mod embedding_layer;
 mod gpt2;
+mod gpu_backend;
 mod layer_norm;
 mod linear_layer;
 mod self_attention;
@@ -44,7 +45,7 @@ pub fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
     let mut tokens = tokenizer.encode_with_special_tokens(&input);
     let model = GPT2::new(&tensor_weights)?;
 
-    for _ in 0..6 {
+    for _ in 0..3 {
         let embeddings = model.embedding_layer.run(&tokens);
         let full_out = model.run(&embeddings)?;
 

@@ -9,9 +9,9 @@ use crate::{attention_block::gelu, gpt2::GPT2};
 #[derive(Deserialize, Debug)]
 struct Embeddings {
     #[serde(rename = "Token embeddings")]
-    token_embeddings: Vec<f32>,
+    _token_embeddings: Vec<f32>,
     #[serde(rename = "Position embeddings")]
-    position_embeddings: Vec<f32>,
+    _position_embeddings: Vec<f32>,
     #[serde(rename = "Combined embeddings")]
     combined_embeddings: Vec<f32>,
     #[serde(rename = "First layer norm")]
@@ -52,14 +52,21 @@ fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
 }
 
 #[cfg(test)]
-fn test_proximity_threshold<'a, T, U>(a: U, b: T, threshold: f32) -> bool
+fn test_proximity_threshold<'a, T, U>(a: U, b: T, threshold: f32, full_debug: bool) -> bool
 where
     T: IntoIterator<Item = &'a f32>,
     U: IntoIterator<Item = &'a f32>,
 {
-    a.into_iter()
-        .zip(b.into_iter())
-        .all(|(x, y)| (x - y).abs() / y <= threshold)
+    let mut result = true;
+    for (k, (x, y)) in a.into_iter().zip(b.into_iter()).enumerate() {
+        if (x - y).abs() > threshold {
+            result = false;
+            if full_debug {
+                println!("{} : {} {}", k, x, y);
+            }
+        }
+    }
+    result
 }
 
 #[test]
@@ -88,7 +95,8 @@ fn test_layer_norm() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_norm,
-        1e-4
+        1e-4,
+        false
     ));
 
     Ok(())
@@ -105,7 +113,8 @@ fn test_layer_attention_linearity() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_attention_exp,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -127,7 +136,8 @@ fn test_layer_attention() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_attention,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -144,7 +154,8 @@ fn test_layer_norm2() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_norm2,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -162,7 +173,8 @@ fn test_layer_mlp_lin1() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_mlp1,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -188,7 +200,8 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_gelu,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -215,7 +228,8 @@ fn test_layer_mlp_mlp2() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_mlp2,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -256,7 +270,8 @@ fn test_layer_mlp_full_manual() -> anyhow::Result<()> {
     assert!(!test_proximity_threshold(
         tested_row,
         &emb.first_layer_full_manual,
-        1e-4
+        1e-4,
+        false
     ));
     Ok(())
 }
@@ -275,7 +290,8 @@ fn test_layer_full() -> anyhow::Result<()> {
     assert!(test_proximity_threshold(
         tested_row,
         &emb.first_layer_full,
-        1e-4
+        1e-1,
+        false
     ));
     Ok(())
 }

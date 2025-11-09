@@ -1,10 +1,12 @@
 use ndarray::{Array2, Array3, Axis, s};
 use safetensors::tensor::TensorView;
 
-use crate::{linear_layer::LinearLayer, tools::weights_to_array_causal};
+use crate::{
+    linear_layer::CpuLinearLayer, linear_layer::LinearLayer, tools::weights_to_array_causal,
+};
 pub struct SelfAttention {
-    pub linear_expand: LinearLayer,
-    pub linear_project: LinearLayer,
+    pub linear_expand: Box<dyn LinearLayer>,
+    pub linear_project: Box<dyn LinearLayer>,
     pub causal_mask: Array2<f32>,
     head_number: usize,
 }
@@ -30,8 +32,8 @@ impl SelfAttention {
     ) -> anyhow::Result<Self> {
         let head_number = 12_usize;
         Ok(SelfAttention {
-            linear_expand: LinearLayer::new(attn_weights, attn_bias)?,
-            linear_project: LinearLayer::new(linproj_weights, linproj_bias)?,
+            linear_expand: Box::new(CpuLinearLayer::new(attn_weights, attn_bias)?),
+            linear_project: Box::new(CpuLinearLayer::new(linproj_weights, linproj_bias)?),
             causal_mask: weights_to_array_causal(&causal)?,
             head_number,
         })

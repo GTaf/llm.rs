@@ -1,10 +1,15 @@
 use std::f32;
+use std::sync::Arc;
 
 use ndarray::Array2;
 use safetensors::SafeTensors;
 
+use crate::gpu_backend::GpuBackend;
 use crate::layer_norm::LayerNorm;
-use crate::{linear_layer::LinearLayer, self_attention::SelfAttention};
+use crate::linear_layer::GpuLinearLayer;
+use crate::{
+    linear_layer::CpuLinearLayer, linear_layer::LinearLayer, self_attention::SelfAttention,
+};
 
 pub fn gelu(x: &f32) -> f32 {
     // 0.5 * x * (1.0 + ((2.0 / f32::consts::PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh())
@@ -16,12 +21,16 @@ pub struct AttentionBlock {
     pub layer_norm1: LayerNorm,
     pub attention_layer: SelfAttention,
     pub layer_norm2: LayerNorm,
-    pub linear_1: LinearLayer,
-    pub linear_2: LinearLayer,
+    pub linear_1: Box<dyn LinearLayer>,
+    pub linear_2: Box<dyn LinearLayer>,
 }
 
 impl AttentionBlock {
-    pub fn new(tensor_weights: &SafeTensors, index: usize) -> anyhow::Result<Self> {
+    pub fn new(
+        tensor_weights: &SafeTensors,
+        index: usize,
+        gpu_backend: Option<Arc<GpuBackend>>,
+    ) -> anyhow::Result<Self> {
         let layer_norm_weights_1 = tensor_weights.tensor(&format!("h.{index}.ln_1.weight"))?;
         let layer_norm_bias_1 = tensor_weights.tensor(&format!("h.{index}.ln_1.bias"))?;
         let layer_norm_weights_2 = tensor_weights.tensor(&format!("h.{index}.ln_2.weight"))?;
@@ -50,8 +59,20 @@ impl AttentionBlock {
                 causal_weights,
             )?,
             layer_norm2: LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?,
-            linear_1: LinearLayer::new(mlp_weights_1, mlp_bias_1)?,
-            linear_2: LinearLayer::new(mlp_weights_proj, mlp_bias_proj)?,
+            linear_1: if let Some(ref bck) = gpu_backend {
+                Box::new(GpuLinearLayer::new(bck.clone(), mlp_weights_1, mlp_bias_1)?)
+            } else {
+                Box::new(CpuLinearLayer::new(mlp_weights_1, mlp_bias_1)?)
+            },
+            linear_2: if let Some(ref bck) = gpu_backend {
+                Box::new(GpuLinearLayer::new(
+                    bck.clone(),
+                    mlp_weights_proj,
+                    mlp_bias_proj,
+                )?)
+            } else {
+                Box::new(CpuLinearLayer::new(mlp_weights_proj, mlp_bias_proj)?)
+            },
         })
     }
 
