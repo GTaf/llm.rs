@@ -5,8 +5,19 @@ use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
 
 use crate::tools::{weights_to_array, weights_to_array1};
-pub trait LinearLayer {
-    fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>>;
+
+pub enum LinearLayer {
+    Cpu(CpuLinearLayer),
+    Gpu(GpuLinearLayer),
+}
+
+impl LinearLayer {
+    pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
+        match self {
+            LinearLayer::Cpu(cpu) => cpu.run(input),
+            LinearLayer::Gpu(gpu) => gpu.run(input).await,
+        }
+    }
 }
 
 pub struct GpuLinearLayer {
@@ -55,13 +66,13 @@ impl GpuLinearLayer {
     }
 }
 
-impl LinearLayer for GpuLinearLayer {
-    fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        self.compute_pipeline.compute(input.to_owned())
+impl GpuLinearLayer {
+    async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
+        self.compute_pipeline.compute(input.to_owned()).await
     }
 }
 
-impl LinearLayer for CpuLinearLayer {
+impl CpuLinearLayer {
     fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         Ok(input.dot(&self.weight) + &self.bias)
     }

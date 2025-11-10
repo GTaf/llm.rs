@@ -1,7 +1,11 @@
 use bytemuck::{Pod, Zeroable};
 use flume::bounded;
+#[cfg(test)]
 use pollster::FutureExt;
 use std::sync::Arc;
+
+#[cfg(target_arch = "wasm32")]
+use web_sys::console;
 
 use ndarray::{Array1, Array2};
 use wgpu::{
@@ -33,16 +37,13 @@ pub struct ComputePipeline {
 }
 
 impl GpuBackend {
-    pub fn new() -> anyhow::Result<Self> {
+    pub async fn new() -> anyhow::Result<Self> {
         let instance = wgpu::Instance::default();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
-            .block_on()
+            .await
             .unwrap();
-        let (device, queue) = adapter
-            .request_device(&Default::default())
-            .block_on()
-            .unwrap();
+        let (device, queue) = adapter.request_device(&Default::default()).await.unwrap();
         let device = Arc::new(device);
         let queue = Arc::new(queue);
 
@@ -91,7 +92,7 @@ impl ComputePipeline {
         }
     }
 
-    pub fn compute(&self, input: Array2<f32>) -> anyhow::Result<Array2<f32>> {
+    pub async fn compute(&self, input: Array2<f32>) -> anyhow::Result<Array2<f32>> {
         let device = &self.backend.device;
         let queue = &self.backend.queue;
 
@@ -175,7 +176,8 @@ impl ComputePipeline {
         }
 
         encoder.copy_buffer_to_buffer(&output_buffer, 0, &temp_buffer, 0, output_buffer.size());
-        encoder.copy_buffer_to_buffer(&debug_buffer_gpu, 0, &debug_buffer_cpu, 0, 128);
+        // encoder.copy_buffer_to_buffer(&debug_buffer_gpu, 0, &debug_buffer_cpu, 0, 128);
+
         queue.submit([encoder.finish()]);
 
         // The mapping process is async, so we'll need to create a channel to get
@@ -187,14 +189,15 @@ impl ComputePipeline {
         temp_buffer.map_async(wgpu::MapMode::Read, .., move |result| {
             tx.send(result).unwrap()
         });
+
         device.poll(wgpu::PollType::wait_indefinitely())?; // We check if the mapping was successful here
-        rx.recv()??;
+        rx.recv_async().await??;
 
         // debug_buffer_cpu.map_async(wgpu::MapMode::Read, .., move |result| {
         //     tx1.send(result).unwrap()
         // });
         // device.poll(wgpu::PollType::wait_indefinitely())?;
-        // rx1.recv()??;
+        // rx1.recv_async().await??;
 
         // We then get the bytes that were stored in the buffer
         let output_data = temp_buffer.get_mapped_range(..);
@@ -214,12 +217,12 @@ impl ComputePipeline {
 
 #[test]
 fn test_gpu_backend_2x2() -> anyhow::Result<()> {
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec((2, 2), vec![1_f32, 2_f32, 3_f32, 4_f32])?;
     let bias = Array1::from_shape_vec(2, vec![1_f32, 2_f32])?;
     let compute_pipeline = ComputePipeline::new_pipeline(backend.clone(), weights, bias);
     let input = Array2::from_shape_vec((2, 2), vec![1_f32, 2_f32, 3_f32, 4_f32])?;
-    let output = compute_pipeline.compute(input)?;
+    let output = compute_pipeline.compute(input).block_on()?;
     assert_eq!(
         output,
         Array2::from_shape_vec((2, 2), vec![8_f32, 12_f32, 16_f32, 24_f32])?
@@ -230,7 +233,7 @@ fn test_gpu_backend_2x2() -> anyhow::Result<()> {
 
 #[test]
 fn test_gpu_backend_3x3_1() -> anyhow::Result<()> {
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (3, 3),
         vec![
@@ -245,7 +248,7 @@ fn test_gpu_backend_3x3_1() -> anyhow::Result<()> {
             1_f32, 0_f32, 1_f32, 0_f32, 1_f32, 0_f32, 1_f32, 0_f32, 1_f32,
         ],
     )?;
-    let output = compute_pipeline.compute(input)?;
+    let output = compute_pipeline.compute(input).block_on()?;
     assert_eq!(
         output,
         Array2::from_shape_vec(
@@ -261,7 +264,7 @@ fn test_gpu_backend_3x3_1() -> anyhow::Result<()> {
 
 #[test]
 fn test_gpu_backend_3x3_2() -> anyhow::Result<()> {
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (3, 3),
         vec![
@@ -276,7 +279,7 @@ fn test_gpu_backend_3x3_2() -> anyhow::Result<()> {
             1_f32, 0_f32, 0_f32, 0_f32, 1_f32, 0_f32, 0_f32, 0_f32, 1_f32,
         ],
     )?;
-    let output = compute_pipeline.compute(input)?;
+    let output = compute_pipeline.compute(input).block_on()?;
     assert_eq!(
         output,
         Array2::from_shape_vec(
@@ -292,7 +295,7 @@ fn test_gpu_backend_3x3_2() -> anyhow::Result<()> {
 
 #[test]
 fn test_gpu_backend_3x3_3() -> anyhow::Result<()> {
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (3, 3),
         vec![
@@ -307,7 +310,7 @@ fn test_gpu_backend_3x3_3() -> anyhow::Result<()> {
             4_f32, 3_f32, 5_f32, 2_f32, 3_f32, 1_f32, 4_f32, 3_f32, 5_f32,
         ],
     )?;
-    let output = compute_pipeline.compute(input)?;
+    let output = compute_pipeline.compute(input).block_on()?;
     assert_eq!(
         output,
         Array2::from_shape_vec(
@@ -325,7 +328,7 @@ fn test_gpu_backend_3x3_3() -> anyhow::Result<()> {
 fn test_gpu_backend_4x4_1() -> anyhow::Result<()> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (4, 4),
         (0..16).map(|_| rng.gen_range(0., 4.)).collect::<Vec<f32>>(),
@@ -337,7 +340,7 @@ fn test_gpu_backend_4x4_1() -> anyhow::Result<()> {
         (4, 4),
         (0..16).map(|_| rng.gen_range(0., 4.)).collect::<Vec<f32>>(),
     )?;
-    let output = compute_pipeline.compute(input.clone())?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
     assert_eq!(output, input.dot(&weights));
 
     Ok(())
@@ -348,7 +351,7 @@ fn test_gpu_backend_32x32_1() -> anyhow::Result<()> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let matrix_size = 32;
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (matrix_size, matrix_size),
         (0..matrix_size * matrix_size)
@@ -364,7 +367,7 @@ fn test_gpu_backend_32x32_1() -> anyhow::Result<()> {
             .map(|_| rng.gen_range(0., 4.))
             .collect::<Vec<f32>>(),
     )?;
-    let output = compute_pipeline.compute(input.clone())?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
     assert_eq!(output, input.dot(&weights));
 
     Ok(())
@@ -375,7 +378,7 @@ fn test_gpu_backend_3_2_1() -> anyhow::Result<()> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let (m, k, n) = (3, 2, 1);
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (k, n),
         (0..k * n)
@@ -391,7 +394,7 @@ fn test_gpu_backend_3_2_1() -> anyhow::Result<()> {
             .map(|_| rng.gen_range(0., 4.))
             .collect::<Vec<f32>>(),
     )?;
-    let output = compute_pipeline.compute(input.clone())?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
     assert_eq!(output, input.dot(&weights));
 
     Ok(())
@@ -402,7 +405,7 @@ fn test_gpu_backend_32_10_11_1() -> anyhow::Result<()> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let (m, k, n) = (32, 10, 11);
-    let backend = Arc::new(GpuBackend::new()?);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (k, n),
         (0..k * n)
@@ -418,7 +421,7 @@ fn test_gpu_backend_32_10_11_1() -> anyhow::Result<()> {
             .map(|_| rng.gen_range(0., 4.))
             .collect::<Vec<f32>>(),
     )?;
-    let output = compute_pipeline.compute(input.clone())?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
     assert_eq!(output, input.dot(&weights));
 
     Ok(())

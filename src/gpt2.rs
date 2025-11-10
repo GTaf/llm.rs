@@ -15,13 +15,13 @@ pub struct GPT2 {
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
     pub layer_norm: LayerNorm,
-    pub linear_layer: Box<dyn LinearLayer>,
+    pub linear_layer: LinearLayer,
 }
 
 impl GPT2 {
-    pub fn new(tensor_weights: &SafeTensors) -> anyhow::Result<Self> {
+    pub async fn new(tensor_weights: &SafeTensors<'_>) -> anyhow::Result<Self> {
         let mut attention_blocks = Vec::new();
-        let gpu_backend = Arc::new(GpuBackend::new()?);
+        let gpu_backend = Arc::new(GpuBackend::new().await?);
         for i in 0..12 {
             attention_blocks.push(AttentionBlock::new(
                 tensor_weights,
@@ -37,21 +37,22 @@ impl GPT2 {
                 tensor_weights.tensor("ln_f.weight")?,
                 tensor_weights.tensor("ln_f.bias")?,
             )?,
-            linear_layer: Box::new(CpuLinearLayer::new_no_bias(
+            linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("wte.weight")?,
             )?),
         })
     }
 
-    pub fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array1<f32>> {
+    pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array1<f32>> {
         let mut res = input.clone();
         for i in 0..12 {
-            res = self.attention_blocks[i].run(&res)?;
+            res = self.attention_blocks[i].run(&res).await?;
         }
         res = self.layer_norm.run(&res);
         let res = self
             .linear_layer
-            .run(&res)?
+            .run(&res)
+            .await?
             .row(res.shape()[0] - 1)
             .to_owned();
         Ok(res)

@@ -61,7 +61,7 @@ Once upon a time</textarea
                             );
 
                             // Call WASM function (NOT async - remove await)
-                            const output = run_web(input, modelBytes);
+                            const output = await run_web(input, modelBytes);
 
                             // Display output
                             outputArea.textContent = output;

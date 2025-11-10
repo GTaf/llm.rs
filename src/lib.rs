@@ -30,7 +30,7 @@ fn argmax(array: &Array1<f32>) -> usize {
     max_index
 }
 
-pub fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
+pub async fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Model bytes length: {}", model_bytes.len()).into());
 
@@ -43,14 +43,11 @@ pub fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
 
     // Use the input parameter instead of hardcoded string
     let mut tokens = tokenizer.encode_with_special_tokens(&input);
-    let model = GPT2::new(&tensor_weights)?;
+    let model = GPT2::new(&tensor_weights).await?;
 
     for _ in 0..3 {
         let embeddings = model.embedding_layer.run(&tokens);
-        let full_out = model.run(&embeddings)?;
-
-        #[cfg(target_arch = "wasm32")]
-        console::log_1(&format!("Next token: {:?}", argmax(&full_out)).into());
+        let full_out = model.run(&embeddings).await?;
 
         tokens.push(argmax(&full_out) as u32);
     }
@@ -67,28 +64,34 @@ pub fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
 }
 
 #[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::js_sys;
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen()]
-pub fn run_web(input: String, model_bytes: &[u8]) -> Result<String, JsValue> {
-    console_error_panic_hook::set_once();
-    console::log_1(&"Hello from Rust!".into());
-    console::log_1(
-        &format!(
-            "Input: '{}', model weights size: {} bytes",
-            &input,
-            model_bytes.len()
-        )
-        .into(),
-    );
+pub async fn run_web(input: String, model_bytes: js_sys::Uint8Array) -> js_sys::Promise {
+    let model_bytes = model_bytes.to_vec();
+    use wasm_bindgen_futures::future_to_promise;
+    future_to_promise(async move {
+        console_error_panic_hook::set_once();
+        console::log_1(&"Hello from Rust!".into());
+        console::log_1(
+            &format!(
+                "Input: '{}', model weights size: {} bytes",
+                &input,
+                model_bytes.len()
+            )
+            .into(),
+        );
 
-    match run_model(input, model_bytes) {
-        Ok(output) => {
-            console::log_1(&format!("Success! Output: {}", output).into());
-            Ok(output)
+        match run_model(input, &model_bytes).await {
+            Ok(output) => {
+                console::log_1(&format!("Success! Output: {}", output).into());
+                Ok(JsValue::from_str(&output))
+            }
+            Err(e) => {
+                let error_msg = format!("Error: {:?}", e);
+                console::log_1(&error_msg.clone().into());
+                Err(JsValue::from_str(&error_msg))
+            }
         }
-        Err(e) => {
-            let error_msg = format!("Error: {:?}", e);
-            console::log_1(&error_msg.clone().into());
-            Err(JsValue::from_str(&error_msg))
-        }
-    }
+    })
 }

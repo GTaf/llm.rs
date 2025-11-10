@@ -21,8 +21,8 @@ pub struct AttentionBlock {
     pub layer_norm1: LayerNorm,
     pub attention_layer: SelfAttention,
     pub layer_norm2: LayerNorm,
-    pub linear_1: Box<dyn LinearLayer>,
-    pub linear_2: Box<dyn LinearLayer>,
+    pub linear_1: LinearLayer,
+    pub linear_2: LinearLayer,
 }
 
 impl AttentionBlock {
@@ -60,30 +60,30 @@ impl AttentionBlock {
             )?,
             layer_norm2: LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?,
             linear_1: if let Some(ref bck) = gpu_backend {
-                Box::new(GpuLinearLayer::new(bck.clone(), mlp_weights_1, mlp_bias_1)?)
+                LinearLayer::Gpu(GpuLinearLayer::new(bck.clone(), mlp_weights_1, mlp_bias_1)?)
             } else {
-                Box::new(CpuLinearLayer::new(mlp_weights_1, mlp_bias_1)?)
+                LinearLayer::Cpu(CpuLinearLayer::new(mlp_weights_1, mlp_bias_1)?)
             },
             linear_2: if let Some(ref bck) = gpu_backend {
-                Box::new(GpuLinearLayer::new(
+                LinearLayer::Gpu(GpuLinearLayer::new(
                     bck.clone(),
                     mlp_weights_proj,
                     mlp_bias_proj,
                 )?)
             } else {
-                Box::new(CpuLinearLayer::new(mlp_weights_proj, mlp_bias_proj)?)
+                LinearLayer::Cpu(CpuLinearLayer::new(mlp_weights_proj, mlp_bias_proj)?)
             },
         })
     }
 
-    pub fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
+    pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         let mut step = self.layer_norm1.run(input);
-        step = self.attention_layer.run(&step)?;
+        step = self.attention_layer.run(&step).await?;
         step += input;
         let mut step_2 = self.layer_norm2.run(&step);
-        step_2 = self.linear_1.run(&step_2)?;
+        step_2 = self.linear_1.run(&step_2).await?;
         step_2 = step_2.map(gelu);
-        step_2 = self.linear_2.run(&step_2)?;
+        step_2 = self.linear_2.run(&step_2).await?;
         Ok(step_2 + step)
     }
 }
