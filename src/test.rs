@@ -49,7 +49,7 @@ fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
     let tokens =
         tokenizer.encode_with_special_tokens("The main character of The lord of the rings is ");
 
-    let model = GPT2::new(&tensor_weights).block_on()?;
+    let model = GPT2::new(&tensor_weights, true).block_on()?;
     Ok((model, tokens, emb))
 }
 

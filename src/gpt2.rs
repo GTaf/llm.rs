@@ -19,16 +19,15 @@ pub struct GPT2 {
 }
 
 impl GPT2 {
-    pub async fn new(tensor_weights: &SafeTensors<'_>) -> anyhow::Result<Self> {
+    pub async fn new(tensor_weights: &SafeTensors<'_>, use_gpu: bool) -> anyhow::Result<Self> {
         let mut attention_blocks = Vec::new();
-        let gpu_backend = Arc::new(GpuBackend::new().await?);
+        let gpu_backend = if use_gpu {
+            Some(Arc::new(GpuBackend::new().await?))
+        } else {
+            None
+        };
         for i in 0..12 {
-            attention_blocks.push(AttentionBlock::new(
-                tensor_weights,
-                i,
-                // None,
-                Some(gpu_backend.clone()),
-            )?);
+            attention_blocks.push(AttentionBlock::new(tensor_weights, i, gpu_backend.clone())?);
         }
         Ok(Self {
             embedding_layer: EmbeddingLayer::new(tensor_weights)?,

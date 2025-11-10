@@ -75,7 +75,7 @@ fn choose_token(tokens: &Array1<f32>, temperature: f32, top_k: usize, top_p: f32
     indexed_values[nucleus_size - 1].0
 }
 
-pub async fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
+pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyhow::Result<String> {
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Model bytes length: {}", model_bytes.len()).into());
 
@@ -88,9 +88,9 @@ pub async fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<Stri
 
     // Use the input parameter instead of hardcoded string
     let mut tokens = tokenizer.encode_with_special_tokens(&input);
-    let model = GPT2::new(&tensor_weights).await?;
+    let model = GPT2::new(&tensor_weights, use_gpu).await?;
 
-    for _ in 0..3 {
+    for _ in 0..60 {
         let embeddings = model.embedding_layer.run(&tokens);
         let full_out = model.run(&embeddings).await?;
 
@@ -127,7 +127,7 @@ pub async fn run_web(input: String, model_bytes: js_sys::Uint8Array) -> js_sys::
             .into(),
         );
 
-        match run_model(input, &model_bytes).await {
+        match run_model(input, &model_bytes, true).await {
             Ok(output) => {
                 console::log_1(&format!("Success! Output: {}", output).into());
                 Ok(JsValue::from_str(&output))
