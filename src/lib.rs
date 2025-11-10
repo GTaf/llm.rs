@@ -1,4 +1,5 @@
 use ndarray::Array1;
+use rand::{Rng, thread_rng};
 use safetensors::tensor::SafeTensors;
 use tiktoken_rs::r50k_base;
 #[cfg(target_arch = "wasm32")]
@@ -18,16 +19,60 @@ mod self_attention;
 mod test;
 mod tools;
 
-fn argmax(array: &Array1<f32>) -> usize {
-    let mut max_value = array[0];
-    let mut max_index = 0;
-    for (i, v) in array.iter().enumerate() {
-        if *v > max_value {
-            max_index = i;
-            max_value = *v;
+fn choose_token(tokens: &Array1<f32>, temperature: f32, top_k: usize, top_p: f32) -> usize {
+    // Apply temperature and create indexed values
+    let mut indexed_values: Vec<(usize, f32)> = tokens
+        .indexed_iter()
+        .map(|(i, &val)| (i, val / temperature))
+        .collect();
+
+    // Sort by logits in descending order
+    indexed_values.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    // Apply top-k filtering
+    if top_k > 0 && top_k < indexed_values.len() {
+        indexed_values.truncate(top_k);
+    }
+
+    // Convert logits to probabilities using softmax
+    let max_logit = indexed_values[0].1;
+    let exp_values: Vec<f32> = indexed_values
+        .iter()
+        .map(|(_, logit)| (logit - max_logit).exp())
+        .collect();
+    let sum_exp: f32 = exp_values.iter().sum();
+    let probabilities: Vec<f32> = exp_values.iter().map(|v| v / sum_exp).collect();
+
+    // Apply top-p (nucleus) filtering
+    let mut cumulative_prob = 0.0;
+    let mut nucleus_size = 0;
+    for &prob in &probabilities {
+        cumulative_prob += prob;
+        nucleus_size += 1;
+        if cumulative_prob >= top_p {
+            break;
         }
     }
-    max_index
+
+    // Truncate to nucleus and renormalize
+    let nucleus_probs = &probabilities[..nucleus_size];
+    let nucleus_sum: f32 = nucleus_probs.iter().sum();
+    let normalized_probs: Vec<f32> = nucleus_probs.iter().map(|p| p / nucleus_sum).collect();
+
+    // Sample from the distribution
+    let mut rng = thread_rng();
+    let random_value: f32 = rng.r#gen();
+
+    let mut cumulative = 0.0;
+    for (i, &prob) in normalized_probs.iter().enumerate() {
+        cumulative += prob;
+        if random_value <= cumulative {
+            return indexed_values[i].0;
+        }
+    }
+
+    // Fallback: return the last token in the nucleus
+    indexed_values[nucleus_size - 1].0
 }
 
 pub async fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<String> {
@@ -49,7 +94,7 @@ pub async fn run_model(input: String, model_bytes: &[u8]) -> anyhow::Result<Stri
         let embeddings = model.embedding_layer.run(&tokens);
         let full_out = model.run(&embeddings).await?;
 
-        tokens.push(argmax(&full_out) as u32);
+        tokens.push(choose_token(&full_out, 0.6, 20, 0.95) as u32);
     }
 
     let decoded = tokenizer.decode(tokens.clone())?;
