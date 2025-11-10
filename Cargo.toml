@@ -1,10 +1,11 @@
 [package]
-name = "rusty-gpt2"
+name = "llm-rs"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+name = "llmrs"
 
 [dependencies]
 ndarray = "0.16.1"

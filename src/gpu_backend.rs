@@ -120,18 +120,18 @@ impl ComputePipeline {
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
-        let debug_buffer_gpu = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("debug"),
-            size: 128,
-            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
-            mapped_at_creation: false,
-        });
-        let debug_buffer_cpu = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("debug"),
-            size: 128,
-            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
+        // let debug_buffer_gpu = device.create_buffer(&wgpu::BufferDescriptor {
+        //     label: Some("debug"),
+        //     size: 128,
+        //     usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC,
+        //     mapped_at_creation: false,
+        // });
+        // let debug_buffer_cpu = device.create_buffer(&wgpu::BufferDescriptor {
+        //     label: Some("debug"),
+        //     size: 128,
+        //     usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+        //     mapped_at_creation: false,
+        // });
         let shape_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Shape uniform"),
             contents: bytemuck::bytes_of(&shape),

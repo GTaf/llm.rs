@@ -1,5 +1,5 @@
+use llmrs::run_model;
 use pollster::FutureExt;
-use rusty_gpt2::run_model;
 use std::fs;
 
 fn main() {
