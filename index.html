@@ -60,7 +60,7 @@ Once upon a time</textarea
                                 `Model size: ${modelBytes.length} bytes`,
                             );
 
-                            // Call WASM function (NOT async - remove await)
+                            // Call WASM function
                             const output = await run_web(input, modelBytes);
 
                             // Display output
