@@ -13,16 +13,20 @@ struct Shape {
 // @group(0) @binding(5) var<storage, read_write> debug: array<f32>;
 
 @compute
-@workgroup_size(1)
+@workgroup_size(16 * 16)
 fn main(
-    // global_invocation_id specifies our position in the invocation grid
-    @builtin(global_invocation_id) gid: vec3<u32>
+    @builtin(global_invocation_id) gid: vec3<u32>,
+    @builtin(workgroup_id) workgroup_id: vec3<u32>,
+    @builtin(local_invocation_id) local_invocation_id: vec3<u32>,
 ) {
-    let i = gid.x;
-    let j = gid.y;
+    const TILE: u32 = 16;
+    let linear = local_invocation_id.x;
 
-    // debug[i] = 1;
+    let li = linear / TILE;  // row index in 16x16 tile
+    let lj = linear % TILE;  // col index in 16x16 tile
 
+    let i = workgroup_id.x * TILE + li;
+    let j = workgroup_id.y * TILE + lj;
 
     if (i >= shape.M || j >= shape.N) {
         return;
@@ -32,13 +36,6 @@ fn main(
     output[idx] = 0.;
     for (var k: u32 = 0; k < shape.K; k++) {
         output[idx] += input[i * shape.K + k] * weights[k * shape.N + j];
-        // if(i == 1 && j == 0) {
-        //     debug[2*k] = input[i * shape.M + k];
-        //     debug[2*k + 1] = weights[k * shape.K + j];
-        //     let offset = 2 * shape.K;
-        //     debug[2*k + offset] = f32(i * shape.M + k);
-        //     debug[2*k + 1 + offset] = f32(k * shape.K + j);
-        // }
     }
     output[idx] += bias[j];
 }

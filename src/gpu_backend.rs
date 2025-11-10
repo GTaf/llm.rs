@@ -172,7 +172,7 @@ impl ComputePipeline {
             let mut pass = encoder.begin_compute_pass(&Default::default());
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
-            pass.dispatch_workgroups(shape.m, shape.n, 1);
+            pass.dispatch_workgroups(shape.m.div_ceil(16), shape.n.div_ceil(16), 1);
         }
 
         encoder.copy_buffer_to_buffer(&output_buffer, 0, &temp_buffer, 0, output_buffer.size());

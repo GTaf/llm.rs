@@ -90,7 +90,7 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
     let mut tokens = tokenizer.encode_with_special_tokens(&input);
     let model = GPT2::new(&tensor_weights, use_gpu).await?;
 
-    for _ in 0..60 {
+    for _ in 0..10 {
         let embeddings = model.embedding_layer.run(&tokens);
         let full_out = model.run(&embeddings).await?;
 
