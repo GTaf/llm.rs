@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::gpu_backend::{ComputePipeline, GpuBackend};
+use crate::gpu_backend::backend::{ComputePipeline, GpuBackend};
 use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
 

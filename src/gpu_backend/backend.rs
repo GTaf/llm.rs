@@ -25,7 +25,7 @@ unsafe impl Zeroable for Shape {}
 unsafe impl Pod for Shape {}
 
 pub struct GpuBackend {
-    device: Arc<Device>,
+    pub device: Arc<Device>,
     queue: Arc<Queue>,
 }
 
@@ -43,7 +43,19 @@ impl GpuBackend {
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
             .unwrap();
-        let (device, queue) = adapter.request_device(&Default::default()).await.unwrap();
+        let features = adapter.features()
+            & (wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS);
+        let (device, queue) = adapter
+            .request_device(&&wgpu::DeviceDescriptor {
+                label: None,
+                required_features: features,
+                required_limits: wgpu::Limits::downlevel_defaults(),
+                experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                memory_hints: wgpu::MemoryHints::MemoryUsage,
+                trace: wgpu::Trace::Off,
+            })
+            .await
+            .unwrap();
         let device = Arc::new(device);
         let queue = Arc::new(queue);
 
@@ -93,6 +105,14 @@ impl ComputePipeline {
     }
 
     pub async fn compute(&self, input: Array2<f32>) -> anyhow::Result<Array2<f32>> {
+        self.compute_timestamp(input, None).await
+    }
+
+    pub async fn compute_timestamp(
+        &self,
+        input: Array2<f32>,
+        timestamp: Option<u64>,
+    ) -> anyhow::Result<Array2<f32>> {
         let device = &self.backend.device;
         let queue = &self.backend.queue;
 
@@ -132,6 +152,18 @@ impl ComputePipeline {
         //     usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
         //     mapped_at_creation: false,
         // });
+        let resolve_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("query resolve buffer"),
+            size: size_of::<u64>() as u64 * 2,
+            usage: wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::QUERY_RESOLVE,
+            mapped_at_creation: false,
+        });
+        let dest_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("query dest buffer"),
+            size: size_of::<u64>() as u64 * 2,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
         let shape_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Shape uniform"),
             contents: bytemuck::bytes_of(&shape),
@@ -167,13 +199,23 @@ impl ComputePipeline {
                 // },
             ],
         });
+        let query_set = device.create_query_set(&wgpu::QuerySetDescriptor {
+            label: Some("Timestamp query set"),
+            count: 2,
+            ty: wgpu::QueryType::Timestamp,
+        });
+
         let mut encoder = device.create_command_encoder(&Default::default());
+        encoder.write_timestamp(&query_set, 0);
         {
             let mut pass = encoder.begin_compute_pass(&Default::default());
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
             pass.dispatch_workgroups(shape.m.div_ceil(16), shape.n.div_ceil(16), 1);
         }
+        encoder.write_timestamp(&query_set, 1);
+        encoder.resolve_query_set(&query_set, 0..2, &resolve_buffer, 0);
+        encoder.copy_buffer_to_buffer(&resolve_buffer, 0, &dest_buffer, 0, resolve_buffer.size());
 
         encoder.copy_buffer_to_buffer(&output_buffer, 0, &temp_buffer, 0, output_buffer.size());
         // encoder.copy_buffer_to_buffer(&debug_buffer_gpu, 0, &debug_buffer_cpu, 0, 128);
@@ -192,6 +234,20 @@ impl ComputePipeline {
 
         device.poll(wgpu::PollType::wait_indefinitely())?; // We check if the mapping was successful here
         rx.recv_async().await??;
+
+        dest_buffer.slice(..).map_async(wgpu::MapMode::Read, |_| ());
+        device.poll(wgpu::PollType::wait_indefinitely())?;
+        let timestamps: Vec<u64> = {
+            let timestamp_view = dest_buffer
+                .slice(..(size_of::<u64>() as wgpu::BufferAddress * 2))
+                .get_mapped_range();
+            bytemuck::cast_slice(&timestamp_view).to_vec()
+        };
+        println!(
+            "Time : {:?}, diff : {} µs",
+            timestamps,
+            timestamps[1] - timestamps[0]
+        );
 
         // debug_buffer_cpu.map_async(wgpu::MapMode::Read, .., move |result| {
         //     tx1.send(result).unwrap()

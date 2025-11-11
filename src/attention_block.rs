@@ -4,7 +4,7 @@ use std::sync::Arc;
 use ndarray::Array2;
 use safetensors::SafeTensors;
 
-use crate::gpu_backend::GpuBackend;
+use crate::gpu_backend::backend::GpuBackend;
 use crate::layer_norm::LayerNorm;
 use crate::linear_layer::GpuLinearLayer;
 use crate::{

@@ -2,10 +2,16 @@
 name = "llm-rs"
 version = "0.1.0"
 edition = "2024"
+default-run = "llm-rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 name = "llmrs"
+
+[[bin]]
+name = "bench-gemm"
+path = "src/gpu_backend/bench.rs"
+
 
 [dependencies]
 ndarray = "0.16.1"

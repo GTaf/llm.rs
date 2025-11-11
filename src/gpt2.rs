@@ -6,7 +6,7 @@ use safetensors::SafeTensors;
 use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
-    gpu_backend::GpuBackend,
+    gpu_backend::backend::GpuBackend,
     layer_norm::LayerNorm,
     linear_layer::{CpuLinearLayer, LinearLayer},
 };

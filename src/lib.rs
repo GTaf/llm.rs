@@ -11,7 +11,7 @@ use crate::gpt2::GPT2;
 mod attention_block;
 mod embedding_layer;
 mod gpt2;
-mod gpu_backend;
+pub mod gpu_backend;
 mod layer_norm;
 mod linear_layer;
 mod self_attention;
