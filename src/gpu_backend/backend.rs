@@ -40,7 +40,11 @@ impl GpuBackend {
     pub async fn new() -> anyhow::Result<Self> {
         let instance = wgpu::Instance::default();
         let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                force_fallback_adapter: false,
+                compatible_surface: None,
+            })
             .await
             .unwrap();
         let features = adapter.features()
@@ -111,7 +115,7 @@ impl ComputePipeline {
     pub async fn compute_timestamp(
         &self,
         input: Array2<f32>,
-        timestamp: Option<u64>,
+        timestamp: Option<&mut f64>,
     ) -> anyhow::Result<Array2<f32>> {
         let device = &self.backend.device;
         let queue = &self.backend.queue;
@@ -243,11 +247,9 @@ impl ComputePipeline {
                 .get_mapped_range();
             bytemuck::cast_slice(&timestamp_view).to_vec()
         };
-        println!(
-            "Time : {:?}, diff : {} µs",
-            timestamps,
-            timestamps[1] - timestamps[0]
-        );
+        if let Some(ts) = timestamp {
+            *ts = (timestamps[1] - timestamps[0]) as f64 * queue.get_timestamp_period() as f64;
+        }
 
         // debug_buffer_cpu.map_async(wgpu::MapMode::Read, .., move |result| {
         //     tx1.send(result).unwrap()
@@ -461,6 +463,87 @@ fn test_gpu_backend_32_10_11_1() -> anyhow::Result<()> {
     use rand::Rng;
     let mut rng = rand::thread_rng();
     let (m, k, n) = (32, 10, 11);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
+    let weights = Array2::from_shape_vec(
+        (k, n),
+        (0..k * n)
+            .map(|_| rng.gen_range(0., 4.))
+            .collect::<Vec<f32>>(),
+    )?;
+
+    let bias = Array1::from_shape_vec(n, vec![0_f32; n])?;
+    let compute_pipeline = ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias);
+    let input = Array2::from_shape_vec(
+        (m, k),
+        (0..m * k)
+            .map(|_| rng.gen_range(0., 4.))
+            .collect::<Vec<f32>>(),
+    )?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
+    assert_eq!(output, input.dot(&weights));
+
+    Ok(())
+}
+
+#[test]
+fn test_gpu_backend_32_32_32_1() -> anyhow::Result<()> {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let (m, k, n) = (32, 32, 32);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
+    let weights = Array2::from_shape_vec(
+        (k, n),
+        (0..k * n)
+            .map(|_| rng.gen_range(0., 4.))
+            .collect::<Vec<f32>>(),
+    )?;
+
+    let bias = Array1::from_shape_vec(n, vec![0_f32; n])?;
+    let compute_pipeline = ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias);
+    let input = Array2::from_shape_vec(
+        (m, k),
+        (0..m * k)
+            .map(|_| rng.gen_range(0., 4.))
+            .collect::<Vec<f32>>(),
+    )?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
+    assert_eq!(output, input.dot(&weights));
+
+    Ok(())
+}
+
+#[test]
+fn test_gpu_backend_16_16_16() -> anyhow::Result<()> {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let (m, k, n) = (16, 16, 16);
+    let backend = Arc::new(GpuBackend::new().block_on()?);
+    let weights = Array2::from_shape_vec(
+        (k, n),
+        (0..k * n)
+            .map(|_| rng.gen_range(0., 4.))
+            .collect::<Vec<f32>>(),
+    )?;
+
+    let bias = Array1::from_shape_vec(n, vec![0_f32; n])?;
+    let compute_pipeline = ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias);
+    let input = Array2::from_shape_vec(
+        (m, k),
+        (0..m * k)
+            .map(|_| rng.gen_range(0., 4.))
+            .collect::<Vec<f32>>(),
+    )?;
+    let output = compute_pipeline.compute(input.clone()).block_on()?;
+    assert_eq!(output, input.dot(&weights));
+
+    Ok(())
+}
+
+#[test]
+fn test_gpu_backend_33() -> anyhow::Result<()> {
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    let (m, k, n) = (33, 33, 33);
     let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec(
         (k, n),
