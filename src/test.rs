@@ -4,7 +4,7 @@ use pollster::FutureExt;
 use safetensors::SafeTensors;
 use serde::Deserialize;
 use std::fs;
-use tiktoken_rs::r50k_base;
+use tokenizers::tokenizer::{Tokenizer};
 
 use crate::{attention_block::gelu, gpt2::GPT2};
 
@@ -39,15 +39,15 @@ struct Embeddings {
 
 #[cfg(test)]
 fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
+    let input = "This test is going to ";
     let data = fs::read_to_string("test/test_data.dump").unwrap();
     let emb: Embeddings = serde_json::from_str(&data).unwrap();
 
     let bytes = fs::read("model.safetensors")?;
     let tensor_weights = SafeTensors::deserialize(&bytes)?;
 
-    let tokenizer = r50k_base()?;
-    let tokens =
-        tokenizer.encode_with_special_tokens("The main character of The lord of the rings is ");
+    let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
+    let mut tokens = Vec::from(tokenizer.encode(input, true).unwrap().get_ids());
 
     let model = GPT2::new(&tensor_weights, true).block_on()?;
     Ok((model, tokens, emb))
