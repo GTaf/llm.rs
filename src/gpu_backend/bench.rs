@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 fn main() -> anyhow::Result<()> {
     use rand::Rng;
-    let mut timestamps = vec![0_f64; 10];
+    let mut timestamps = [0_f64; 10];
     let (m, k, n) = (2048, 2048, 2048);
     let mut rng = rand::thread_rng();
     let backend = Arc::new(GpuBackend::new().block_on()?);
@@ -23,16 +23,16 @@ fn main() -> anyhow::Result<()> {
             .map(|_| rng.gen_range(0., 4.))
             .collect::<Vec<f32>>(),
     )?;
-    for i in 0..10 {
+    for timestamp in timestamps.iter_mut().take(10) {
         let compute_pipeline =
             ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias.clone());
         let _output = compute_pipeline
-            .compute_timestamp(input.clone(), Some(&mut timestamps[i]))
+            .compute_timestamp(input.clone(), Some(timestamp))
             .block_on()?;
     }
 
     let ops = (2 * m * n * k) as f64;
-    let time = timestamps.iter().sum::<f64>() as f64 / timestamps.len() as f64;
+    let time = timestamps.iter().sum::<f64>() / timestamps.len() as f64;
     let gflops = ops / time;
     println!("Results :\nTime : {time}µs and Ops : {ops}\nGFLOPs : {gflops}");
     // assert_eq!(output, input.dot(&weights));

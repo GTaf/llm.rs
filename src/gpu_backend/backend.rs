@@ -50,7 +50,7 @@ impl GpuBackend {
         let features = adapter.features()
             & (wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS);
         let (device, queue) = adapter
-            .request_device(&&wgpu::DeviceDescriptor {
+            .request_device(&wgpu::DeviceDescriptor {
                 label: None,
                 required_features: features,
                 required_limits: wgpu::Limits::downlevel_defaults(),
