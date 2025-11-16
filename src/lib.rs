@@ -1,7 +1,7 @@
 use ndarray::Array1;
 use rand::{Rng, thread_rng};
 use safetensors::tensor::SafeTensors;
-use tiktoken_rs::r50k_base;
+use tokenizers::tokenizer::{Tokenizer};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
@@ -84,10 +84,10 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Input text: {}", input).into());
 
-    let tokenizer = r50k_base()?;
+    let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
 
     // Use the input parameter instead of hardcoded string
-    let mut tokens = tokenizer.encode_with_special_tokens(&input);
+    let mut tokens = Vec::from(tokenizer.encode(input, true).unwrap().get_ids());
     let model = GPT2::new(&tensor_weights, use_gpu).await?;
 
     for _ in 0..10 {
@@ -97,7 +97,7 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
         tokens.push(choose_token(&full_out, 0.6, 20, 0.95) as u32);
     }
 
-    let decoded = tokenizer.decode(tokens.clone())?;
+    let decoded = tokenizer.decode(&tokens, false).unwrap();
 
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Decoded output: {}", decoded).into());
