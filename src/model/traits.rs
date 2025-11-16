@@ -1,5 +1,7 @@
-use ndarray::Array2;
+use async_trait::async_trait;
+use ndarray::{Array1};
 
-trait LanguageModel {
-    fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>>;
+#[async_trait]
+pub trait LanguageModel {
+    async fn run(&self, input: &[u32]) -> anyhow::Result<Array1<f32>>;
 }

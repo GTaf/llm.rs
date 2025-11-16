@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use ndarray::{Array1, Array2};
+use async_trait::async_trait;
+use ndarray::{Array1};
 use safetensors::SafeTensors;
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
     layer_norm::LayerNorm,
-    linear_layer::{CpuLinearLayer, LinearLayer},
+    linear_layer::{CpuLinearLayer, LinearLayer}, model::LanguageModel,
 };
 
 pub struct GPT2 {
@@ -42,8 +43,9 @@ impl GPT2 {
         })
     }
 
-    pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array1<f32>> {
-        let mut res = input.clone();
+    pub async fn run(&self, input: &[u32]) -> anyhow::Result<Array1<f32>> {
+        let embedding = self.embedding_layer.run(input);
+        let mut res = embedding;
         for i in 0..12 {
             res = self.attention_blocks[i].run(&res).await?;
         }
@@ -55,5 +57,12 @@ impl GPT2 {
             .row(res.shape()[0] - 1)
             .to_owned();
         Ok(res)
+    }
+}
+
+#[async_trait]
+impl LanguageModel for GPT2 {
+    async fn run(&self, input: &[u32]) -> anyhow::Result<Array1<f32>> {
+        self.run(input).await
     }
 }

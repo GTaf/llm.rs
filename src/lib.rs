@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
 
-use crate::model::gpt2::GPT2;
+use crate::model::{LanguageModel, gpt2::GPT2};
 mod attention_block;
 mod embedding_layer;
 pub mod gpu_backend;
@@ -88,11 +88,10 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
 
     // Use the input parameter instead of hardcoded string
     let mut tokens = Vec::from(tokenizer.encode(input, true).unwrap().get_ids());
-    let model = GPT2::new(&tensor_weights, use_gpu).await?;
+    let model: Box<dyn LanguageModel> = Box::new(GPT2::new(&tensor_weights, use_gpu).await?);
 
     for _ in 0..10 {
-        let embeddings = model.embedding_layer.run(&tokens);
-        let full_out = model.run(&embeddings).await?;
+        let full_out = model.run(&tokens).await?;
 
         tokens.push(choose_token(&full_out, 0.6, 20, 0.95) as u32);
     }

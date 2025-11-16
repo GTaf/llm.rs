@@ -1,4 +1,4 @@
-mod traits;
 pub(crate) mod gpt2;
+pub(crate) mod traits;
 
-pub use gpt2::GPT2;
+pub use traits::LanguageModel;
