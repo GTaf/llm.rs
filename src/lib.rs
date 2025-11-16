@@ -7,10 +7,9 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
 
-use crate::gpt2::GPT2;
+use crate::model::gpt2::GPT2;
 mod attention_block;
 mod embedding_layer;
-mod gpt2;
 pub mod gpu_backend;
 mod layer_norm;
 mod linear_layer;
@@ -18,6 +17,7 @@ mod self_attention;
 #[cfg(test)]
 mod test;
 mod tools;
+mod model;
 
 fn choose_token(tokens: &Array1<f32>, temperature: f32, top_k: usize, top_p: f32) -> usize {
     // Apply temperature and create indexed values

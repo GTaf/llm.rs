@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::fs;
 use tokenizers::tokenizer::{Tokenizer};
 
-use crate::{attention_block::gelu, gpt2::GPT2};
+use crate::{attention_block::gelu, model::gpt2::GPT2};
 
 #[derive(Deserialize, Debug)]
 struct Embeddings {
