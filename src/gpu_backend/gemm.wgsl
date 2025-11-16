@@ -48,13 +48,9 @@ fn main(
 
         if (input_j < shape.K) {
             tile_input[local_invocation_id.x] = input[input_i * shape.K + input_j];
-        } else {
-            tile_input[local_invocation_id.x] = 0.;
         };
         if (weights_i < shape.K) {
             tile_weights[local_invocation_id.x] = weights[weights_i * shape.N + weights_j];
-        } else {
-            tile_weights[local_invocation_id.x] = 0.;
         };
         workgroupBarrier();
 
@@ -62,12 +58,11 @@ fn main(
         let k_start = tile_id * workgroup_len;
         let k_end = min(k_start + workgroup_len, shape.K);
         let k_limit = k_end - k_start;
-        if (is_valid) {
-            for (var k: u32 = 0; k < k_limit; k++) {
-                output[idx] += tile_input[local_i * workgroup_len + k] * 
-                tile_weights[k * workgroup_len + local_j];
-            }
+        for (var k: u32 = 0; is_valid && k < k_limit; k++) {
+            output[idx] += tile_input[local_i * workgroup_len + k] * 
+            tile_weights[k * workgroup_len + local_j];
         }
+        
         workgroupBarrier();
     }
     output[idx] += bias[j];
