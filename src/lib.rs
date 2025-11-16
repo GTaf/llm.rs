@@ -1,13 +1,11 @@
 use ndarray::Array1;
 use rand::{Rng, thread_rng};
-use safetensors::tensor::SafeTensors;
-use tokenizers::tokenizer::{Tokenizer};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
 
-use crate::model::{LanguageModel, gpt2::GPT2};
+use crate::model::{builder::ModelBuilder, config::{ModelConfig, TensorWeightsConfig}};
 mod attention_block;
 mod embedding_layer;
 pub mod gpu_backend;
@@ -19,6 +17,8 @@ mod test;
 mod tools;
 mod model;
 
+
+// Fully Ai generated code
 fn choose_token(tokens: &Array1<f32>, temperature: f32, top_k: usize, top_p: f32) -> usize {
     // Apply temperature and create indexed values
     let mut indexed_values: Vec<(usize, f32)> = tokens
@@ -79,24 +79,20 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Model bytes length: {}", model_bytes.len()).into());
 
-    let tensor_weights = SafeTensors::deserialize(model_bytes)?;
-
+    let model_config = ModelConfig{ qwen: false, tensor_weights: TensorWeightsConfig::RawBytes(model_bytes.to_vec()), use_gpu };
+    let builder = ModelBuilder::from_config(model_config);
+    let model = builder.build().await;
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Input text: {}", input).into());
 
-    let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
-
-    // Use the input parameter instead of hardcoded string
-    let mut tokens = Vec::from(tokenizer.encode(input, true).unwrap().get_ids());
-    let model: Box<dyn LanguageModel> = Box::new(GPT2::new(&tensor_weights, use_gpu).await?);
+    let mut tokens = model.encode(input)?;
 
     for _ in 0..10 {
         let full_out = model.run(&tokens).await?;
 
         tokens.push(choose_token(&full_out, 0.6, 20, 0.95) as u32);
     }
-
-    let decoded = tokenizer.decode(&tokens, false).unwrap();
+    let decoded = model.decode(&tokens).unwrap();
 
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Decoded output: {}", decoded).into());

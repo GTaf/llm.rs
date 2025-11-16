@@ -47,7 +47,7 @@ fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
     let tensor_weights = SafeTensors::deserialize(&bytes)?;
 
     let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
-    let mut tokens = Vec::from(tokenizer.encode(input, true).unwrap().get_ids());
+    let tokens = Vec::from(tokenizer.encode(input, true).unwrap().get_ids());
 
     let model = GPT2::new(&tensor_weights, true).block_on()?;
     Ok((model, tokens, emb))

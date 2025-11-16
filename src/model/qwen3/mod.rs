@@ -13,7 +13,7 @@ use crate::{
     linear_layer::{CpuLinearLayer, LinearLayer}, model::LanguageModel,
 };
 
-pub struct GPT2 {
+pub struct Qwen3 {
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
     pub layer_norm: LayerNorm,
@@ -21,7 +21,7 @@ pub struct GPT2 {
     tokenizer: Tokenizer,
 }
 
-impl GPT2 {
+impl Qwen3 {
     pub async fn new(tensor_weights: &SafeTensors<'_>, use_gpu: bool) -> anyhow::Result<Self> {
         let mut attention_blocks = Vec::new();
         let gpu_backend = if use_gpu {
@@ -65,12 +65,12 @@ impl GPT2 {
 }
 
 #[async_trait]
-impl LanguageModel for GPT2 {
+impl LanguageModel for Qwen3 {
     async fn run(&self, input: &[u32]) -> anyhow::Result<Array1<f32>> {
         self.run(input).await
     }
-    fn encode(&self, input: String) -> anyhow::Result<Vec<u32>> {
 
+    fn encode(&self, input: String) -> anyhow::Result<Vec<u32>> {
         // Use the input parameter instead of hardcoded string
         let tokens = Vec::from(self.tokenizer.encode(input, true).unwrap().get_ids());
         Ok(tokens)
