@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use ndarray::{Array1};
+use ndarray::Array1;
 
 #[async_trait]
 pub trait LanguageModel {

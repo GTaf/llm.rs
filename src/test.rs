@@ -4,7 +4,7 @@ use pollster::FutureExt;
 use safetensors::SafeTensors;
 use serde::Deserialize;
 use std::fs;
-use tokenizers::tokenizer::{Tokenizer};
+use tokenizers::tokenizer::Tokenizer;
 
 use crate::{attention_block::gelu, model::gpt2::GPT2};
 

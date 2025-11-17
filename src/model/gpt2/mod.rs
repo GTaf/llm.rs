@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use ndarray::{Array1};
+use ndarray::Array1;
 use safetensors::SafeTensors;
-use tokenizers::tokenizer::{Tokenizer};
+use tokenizers::tokenizer::Tokenizer;
 
 use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
     layer_norm::LayerNorm,
-    linear_layer::{CpuLinearLayer, LinearLayer}, model::LanguageModel,
+    linear_layer::{CpuLinearLayer, LinearLayer},
+    model::LanguageModel,
 };
 
 pub struct GPT2 {
@@ -43,7 +44,7 @@ impl GPT2 {
             linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("wte.weight")?,
             )?),
-            tokenizer
+            tokenizer,
         })
     }
 
@@ -70,7 +71,6 @@ impl LanguageModel for GPT2 {
         self.run(input).await
     }
     fn encode(&self, input: String) -> anyhow::Result<Vec<u32>> {
-
         // Use the input parameter instead of hardcoded string
         let tokens = Vec::from(self.tokenizer.encode(input, true).unwrap().get_ids());
         Ok(tokens)

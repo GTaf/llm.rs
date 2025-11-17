@@ -1,16 +1,17 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use ndarray::{Array1};
+use ndarray::Array1;
 use safetensors::SafeTensors;
-use tokenizers::tokenizer::{Tokenizer};
+use tokenizers::tokenizer::Tokenizer;
 
 use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
     layer_norm::LayerNorm,
-    linear_layer::{CpuLinearLayer, LinearLayer}, model::LanguageModel,
+    linear_layer::{CpuLinearLayer, LinearLayer},
+    model::LanguageModel,
 };
 
 use half::f16;
@@ -45,7 +46,7 @@ impl Qwen3 {
             linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("wte.weight")?,
             )?),
-            tokenizer
+            tokenizer,
         })
     }
 

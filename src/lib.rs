@@ -5,18 +5,20 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::console;
 
-use crate::model::{builder::ModelBuilder, config::{ModelConfig, TensorWeightsConfig}};
+use crate::model::{
+    builder::ModelBuilder,
+    config::{ModelConfig, TensorWeightsConfig},
+};
 mod attention_block;
 mod embedding_layer;
 pub mod gpu_backend;
 mod layer_norm;
 mod linear_layer;
+mod model;
 mod self_attention;
 #[cfg(test)]
 mod test;
 mod tools;
-mod model;
-
 
 // Fully Ai generated code
 fn choose_token(tokens: &Array1<f32>, temperature: f32, top_k: usize, top_p: f32) -> usize {
@@ -79,7 +81,11 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
     #[cfg(target_arch = "wasm32")]
     console::log_1(&format!("Model bytes length: {}", model_bytes.len()).into());
 
-    let model_config = ModelConfig{ qwen: false, tensor_weights: TensorWeightsConfig::RawBytes(model_bytes.to_vec()), use_gpu };
+    let model_config = ModelConfig {
+        qwen: false,
+        tensor_weights: TensorWeightsConfig::RawBytes(model_bytes.to_vec()),
+        use_gpu,
+    };
     let builder = ModelBuilder::from_config(model_config);
     let model = builder.build().await;
     #[cfg(target_arch = "wasm32")]

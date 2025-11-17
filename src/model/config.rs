@@ -1,6 +1,6 @@
 pub enum TensorWeightsConfig {
     RawBytes(Vec<u8>),
-    Path(String)
+    Path(String),
 }
 
 pub struct ModelConfig {

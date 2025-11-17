@@ -12,10 +12,13 @@ pub fn weights_to_array<'a>(tensor: &TensorView<'a>) -> anyhow::Result<Array2<f3
         safetensors::Dtype::F16 => {
             // Load as f16 → convert elementwise → f32
             let f16_slice: &[f16] = bytemuck::cast_slice(&aligned);
-            let converted: Vec<f32> = f16_slice.iter().map(|x| x.to_f32()).collect(); converted
-        },
+            let converted: Vec<f32> = f16_slice.iter().map(|x| x.to_f32()).collect();
+            converted
+        }
         safetensors::Dtype::F32 => {
-            let f32_slice: &[f32] = bytemuck::cast_slice(&aligned); f32_slice.to_vec()},
+            let f32_slice: &[f32] = bytemuck::cast_slice(&aligned);
+            f32_slice.to_vec()
+        }
         _ => todo!(),
     };
 
