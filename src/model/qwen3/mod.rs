@@ -13,6 +13,8 @@ use crate::{
     linear_layer::{CpuLinearLayer, LinearLayer}, model::LanguageModel,
 };
 
+use half::f16;
+
 pub struct Qwen3 {
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
