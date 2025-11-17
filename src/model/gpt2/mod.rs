@@ -34,7 +34,7 @@ impl GPT2 {
         }
         let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
         Ok(Self {
-            embedding_layer: EmbeddingLayer::new(tensor_weights)?,
+            embedding_layer: EmbeddingLayer::new(tensor_weights, Some("wpe.weight"), "wte.weight")?,
             attention_blocks,
             layer_norm: LayerNorm::new(
                 tensor_weights.tensor("ln_f.weight")?,
