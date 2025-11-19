@@ -9,17 +9,16 @@ use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
-    layer_norm::LayerNorm,
+    layers::rms_norm::RMSNorm,
     linear_layer::{CpuLinearLayer, LinearLayer},
     model::LanguageModel,
+    layers::traits::Layer,
 };
-
-use half::f16;
 
 pub struct Qwen3 {
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
-    pub layer_norm: LayerNorm,
+    pub layer_norm: Box<dyn Layer>,
     pub linear_layer: LinearLayer,
     tokenizer: Tokenizer,
 }
@@ -32,19 +31,18 @@ impl Qwen3 {
         } else {
             None
         };
-        for i in 0..12 {
+        for i in 0..27 {
             attention_blocks.push(AttentionBlock::new(tensor_weights, i, gpu_backend.clone())?);
         }
         let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
         Ok(Self {
-            embedding_layer: EmbeddingLayer::new(tensor_weights, None, "embed_tokens.weight")?,
+            embedding_layer: EmbeddingLayer::new(tensor_weights, None, "model.embed_tokens.weight")?,
             attention_blocks,
-            layer_norm: LayerNorm::new(
-                tensor_weights.tensor("ln_f.weight")?,
-                tensor_weights.tensor("ln_f.bias")?,
-            )?,
+            layer_norm: Box::new(RMSNorm::new(
+                tensor_weights.tensor("model.norm.weight")?
+            )?),
             linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
-                tensor_weights.tensor("wte.weight")?,
+                tensor_weights.tensor("lm_head.weight")?,
             )?),
             tokenizer,
         })

@@ -9,7 +9,7 @@ use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
-    layer_norm::LayerNorm,
+    layers::{Layer, layer_norm::LayerNorm},
     linear_layer::{CpuLinearLayer, LinearLayer},
     model::LanguageModel,
 };
@@ -17,7 +17,7 @@ use crate::{
 pub struct GPT2 {
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
-    pub layer_norm: LayerNorm,
+    pub layer_norm: Box<dyn Layer>,
     pub linear_layer: LinearLayer,
     tokenizer: Tokenizer,
 }
@@ -37,10 +37,10 @@ impl GPT2 {
         Ok(Self {
             embedding_layer: EmbeddingLayer::new(tensor_weights, Some("wpe.weight"), "wte.weight")?,
             attention_blocks,
-            layer_norm: LayerNorm::new(
+            layer_norm: Box::new(LayerNorm::new(
                 tensor_weights.tensor("ln_f.weight")?,
                 tensor_weights.tensor("ln_f.bias")?,
-            )?,
+            )?),
             linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("wte.weight")?,
             )?),

@@ -5,11 +5,12 @@ use ndarray::Array2;
 use safetensors::SafeTensors;
 
 use crate::gpu_backend::backend::GpuBackend;
-use crate::layer_norm::LayerNorm;
+use crate::layers::layer_norm::LayerNorm;
 use crate::linear_layer::GpuLinearLayer;
 use crate::{
     linear_layer::CpuLinearLayer, linear_layer::LinearLayer, self_attention::SelfAttention,
 };
+use crate::layers::traits::Layer;
 
 pub fn gelu(x: &f32) -> f32 {
     // 0.5 * x * (1.0 + ((2.0 / f32::consts::PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh())
@@ -18,11 +19,20 @@ pub fn gelu(x: &f32) -> f32 {
 }
 
 pub struct AttentionBlock {
-    pub layer_norm1: LayerNorm,
+    pub layer_norm1: Box<dyn Layer>,
     pub attention_layer: SelfAttention,
-    pub layer_norm2: LayerNorm,
+    pub layer_norm2: Box<dyn Layer>,
     pub linear_1: LinearLayer,
     pub linear_2: LinearLayer,
+}
+
+pub enum NormType {
+    RMSNorm(String),
+    LayerNorm((String, String)),
+}
+
+pub struct AttentionConfig {
+    norm_type: NormType,
 }
 
 impl AttentionBlock {
@@ -50,7 +60,7 @@ impl AttentionBlock {
         let causal_weights = tensor_weights.tensor(&format!("h.{index}.attn.bias"))?;
 
         Ok(Self {
-            layer_norm1: LayerNorm::new(layer_norm_weights_1, layer_norm_bias_1)?,
+            layer_norm1: Box::new(LayerNorm::new(layer_norm_weights_1, layer_norm_bias_1)?),
             attention_layer: SelfAttention::new(
                 linproj_weights,
                 linproj_bias,
@@ -58,7 +68,7 @@ impl AttentionBlock {
                 attn_bias,
                 causal_weights,
             )?,
-            layer_norm2: LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?,
+            layer_norm2: Box::new(LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?),
             linear_1: if let Some(ref bck) = gpu_backend {
                 LinearLayer::Gpu(GpuLinearLayer::new(bck.clone(), mlp_weights_1, mlp_bias_1)?)
             } else {

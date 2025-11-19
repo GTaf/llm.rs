@@ -12,7 +12,7 @@ use crate::model::{
 mod attention_block;
 mod embedding_layer;
 pub mod gpu_backend;
-mod layer_norm;
+mod layers;
 mod linear_layer;
 mod model;
 mod self_attention;
