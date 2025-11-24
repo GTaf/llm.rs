@@ -1,3 +1,8 @@
 /target
 model.safetensors
 test/test_data.dump
+test/temp_test.py
+test/attention_detailed.json
+profile.json.gz
+src/model/gpt2/tokenizer.json
+src/model/qwen3/tokenizer.json
