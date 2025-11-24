@@ -18,7 +18,7 @@ impl LayerNorm {
 }
 
 impl Layer for LayerNorm {
-    fn run_cpu(&self, input: &Array2<f32>) -> Array2<f32> {
+    fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         let mut result = Array2::zeros((input.shape()[0], input.shape()[1]));
         for (i, input_row) in input.axis_iter(Axis(0)).enumerate() {
             let n = input_row.len() as f32;
@@ -34,10 +34,10 @@ impl Layer for LayerNorm {
                 .assign(&(&normalized * &self.weight + &self.bias));
         }
 
-        result
+        Ok(result)
     }
     
-    fn run_gpu(&self, _: wgpu::Buffer) -> wgpu::Buffer {
+    fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
         todo!()
     }
 }

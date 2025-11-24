@@ -19,16 +19,16 @@ impl From<Buffer> for TensorData {
 }
 
 pub trait Layer: Send + Sync {
-    fn run_cpu(&self, input: &Array2<f32>) -> Array2<f32>;
-    fn run_gpu(&self, input: Buffer) -> Buffer;
+    fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>>;
+    fn run_gpu(&self, input: Buffer) -> anyhow::Result<Buffer>;
 }
 
 impl dyn Layer {
-    pub fn run(&self, input: TensorData) -> TensorData {
-        match input {
-            TensorData::CpuData(array_base) => TensorData::CpuData(self.run_cpu(&array_base)),
-            TensorData::GpuData(buffer) => TensorData::GpuData(self.run_gpu(buffer)),
-        }
+    pub fn run(&self, input: TensorData) -> anyhow::Result<TensorData> {
+        Ok(match input {
+            TensorData::CpuData(array_base) => TensorData::CpuData(self.run_cpu(&array_base)?),
+            TensorData::GpuData(buffer) => TensorData::GpuData(self.run_gpu(buffer)?),
+        })
         
     }
 }

@@ -15,13 +15,13 @@ impl Gelu {
 }
 
 impl Layer for Gelu {
-    fn run_cpu(&self, input: &Array2<f32>) -> Array2<f32> {
+    fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         let result = input.clone();
         result.map(gelu);
-        result
+        Ok(result)
     }
     
-    fn run_gpu(&self, _: wgpu::Buffer) -> wgpu::Buffer {
+    fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
         todo!()
     }
 }

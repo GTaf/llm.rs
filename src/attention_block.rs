@@ -8,9 +8,9 @@ use crate::gpu_backend::backend::GpuBackend;
 use crate::layers::gelu::Gelu;
 use crate::layers::layer_norm::LayerNorm;
 use crate::layers::traits::Layer;
-use crate::linear_layer::GpuLinearLayer;
+use crate::layers::linear_layer::GpuLinearLayer;
 use crate::{
-    linear_layer::CpuLinearLayer, linear_layer::LinearLayer, self_attention::SelfAttention,
+    layers::linear_layer::CpuLinearLayer, layers::linear_layer::LinearLayer, self_attention::SelfAttention,
 };
 
 pub struct AttentionBlock {
@@ -84,12 +84,12 @@ impl AttentionBlock {
     }
 
     pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        let mut step = self.layer_norm1.run_cpu(input);
+        let mut step = self.layer_norm1.run_cpu(input)?;
         step = self.attention_layer.run(&step).await?;
         step += input;
-        let mut step_2 = self.layer_norm2.run_cpu(&step);
+        let mut step_2 = self.layer_norm2.run_cpu(&step)?;
         step_2 = self.linear_1.run(&step_2).await?;
-        step_2 = self.gelu.run_cpu(&step_2);
+        step_2 = self.gelu.run_cpu(&step_2)?;
         step_2 = self.linear_2.run(&step_2).await?;
         Ok(step_2 + step)
     }

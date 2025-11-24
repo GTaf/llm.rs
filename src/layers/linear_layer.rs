@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::gpu_backend::backend::{ComputePipeline, GpuBackend};
+use crate::{gpu_backend::backend::{ComputePipeline, GpuBackend}, layers::Layer};
 use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
 
@@ -75,5 +75,20 @@ impl GpuLinearLayer {
 impl CpuLinearLayer {
     fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         Ok(input.dot(&self.weight) + &self.bias)
+    }
+}
+
+impl Layer for LinearLayer {
+    fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
+        if let LinearLayer::Cpu(layer) = self  {
+            layer.run(input)
+        } else {
+            todo!()
+        }
+        
+    }
+
+    fn run_gpu(&self, input: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
+        todo!()
     }
 }

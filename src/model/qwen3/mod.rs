@@ -11,7 +11,7 @@ use crate::{
     gpu_backend::backend::GpuBackend,
     layers::rms_norm::RMSNorm,
     layers::traits::Layer,
-    linear_layer::{CpuLinearLayer, LinearLayer},
+    layers::linear_layer::{CpuLinearLayer, LinearLayer},
     layers::traits::TensorData,
     model::LanguageModel,
 };
@@ -57,7 +57,7 @@ impl Qwen3 {
         for i in 0..12 {
             res = self.attention_blocks[i].run(&res).await?;
         }
-        let res = self.layer_norm.run(res.into());
+        let res = self.layer_norm.run(res.into())?;
         let res = match res {
             TensorData::CpuData(test) => self
             .linear_layer

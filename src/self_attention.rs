@@ -2,7 +2,7 @@ use ndarray::{Array2, Array3, Axis, s};
 use safetensors::tensor::TensorView;
 
 use crate::{
-    linear_layer::CpuLinearLayer, linear_layer::LinearLayer, tools::weights_to_array_causal,
+    layers::linear_layer::CpuLinearLayer, layers::linear_layer::LinearLayer, tools::weights_to_array_causal,
 };
 pub struct SelfAttention {
     pub linear_expand: LinearLayer,

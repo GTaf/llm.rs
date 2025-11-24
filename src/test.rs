@@ -92,7 +92,7 @@ fn test_layer_norm() -> anyhow::Result<()> {
         .get(0)
         .unwrap()
         .layer_norm1
-        .run_cpu(&embeddings);
+        .run_cpu(&embeddings)?;
     let tested_row = output.row(0);
     assert!(test_proximity_threshold(
         tested_row,
@@ -109,7 +109,7 @@ fn test_layer_attention_linearity() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block
         .attention_layer
         .linear_expand
@@ -130,7 +130,7 @@ fn test_layer_attention() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block.attention_layer.run(&output).block_on()?;
     let tested_row = output.row(0);
     println!(
@@ -153,9 +153,9 @@ fn test_layer_norm2() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block.attention_layer.run(&output).block_on()?;
-    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings));
+    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings))?;
     let tested_row = output.row(0);
     assert!(test_proximity_threshold(
         tested_row,
@@ -171,9 +171,9 @@ fn test_layer_mlp_lin1() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block.attention_layer.run(&output).block_on()?;
-    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings));
+    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings))?;
     let mlp_output = attention_block.linear_1.run(&output).block_on()?;
     let tested_row = mlp_output.row(0);
     assert!(test_proximity_threshold(
@@ -190,11 +190,11 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block.attention_layer.run(&output).block_on()?;
-    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings));
+    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings))?;
     let mlp_output = attention_block.linear_1.run(&output).block_on()?;
-    let mlp_output = attention_block.gelu.run_cpu(&mlp_output);
+    let mlp_output = attention_block.gelu.run_cpu(&mlp_output)?;
     let tested_row = mlp_output.row(0);
 
     println!(
@@ -217,11 +217,11 @@ fn test_layer_mlp_mlp2() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block.attention_layer.run(&output).block_on()?;
-    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings));
+    let output = attention_block.layer_norm2.run_cpu(&(output + embeddings))?;
     let mlp_output = attention_block.linear_1.run(&output).block_on()?;
-    let mlp_output = attention_block.gelu.run_cpu(&mlp_output);
+    let mlp_output = attention_block.gelu.run_cpu(&mlp_output)?;
     let mlp_output = attention_block.linear_2.run(&mlp_output).block_on()?;
     let tested_row = mlp_output.row(0);
 
@@ -245,12 +245,12 @@ fn test_layer_mlp_full_manual() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.layer_norm1.run_cpu(&embeddings);
+    let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let attention_output = attention_block.attention_layer.run(&output).block_on()?;
     let intermediate = attention_output.clone() + &embeddings;
-    let norm2_output = attention_block.layer_norm2.run_cpu(&intermediate);
+    let norm2_output = attention_block.layer_norm2.run_cpu(&intermediate)?;
     let mlp_output = attention_block.linear_1.run(&norm2_output).block_on()?;
-    let mlp_output = attention_block.gelu.run_cpu(&mlp_output);
+    let mlp_output = attention_block.gelu.run_cpu(&mlp_output)?;
     let mlp_output = attention_block.linear_2.run(&mlp_output).block_on()?;
     println!(
         "emb_rust : {:?}\n emb python : {:?}\n\nattn_out rust : {:?}\n attn out python : {:?}\n\nskip conn output rust : {:?}\n skip con python : {:?}\n\nmlp out rust : {:?}\nmlp_output_python : {:?}",
