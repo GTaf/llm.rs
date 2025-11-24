@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use ndarray::{Array1, Array2, Axis};
 use safetensors::tensor::TensorView;
 
