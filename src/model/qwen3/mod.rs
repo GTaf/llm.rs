@@ -35,7 +35,7 @@ impl Qwen3 {
         for i in 0..27 {
             attention_blocks.push(AttentionBlock::new(tensor_weights, i, gpu_backend.clone())?);
         }
-        let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
+        let tokenizer = Tokenizer::from_file("src/model/qwen3/tokenizer.json").unwrap();
         Ok(Self {
             embedding_layer: EmbeddingLayer::new(
                 tensor_weights,
@@ -57,7 +57,7 @@ impl Qwen3 {
         for i in 0..12 {
             res = self.attention_blocks[i].run(&res).await?;
         }
-        let res = self.layer_norm.run(res.into())?;
+        let res = self.layer_norm.run(res.into()).await?;
         let res = match res {
             TensorData::CpuData(test) => self
             .linear_layer

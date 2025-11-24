@@ -1,5 +1,6 @@
 use ndarray::{Array1, Array2, Axis};
 use safetensors::tensor::TensorView;
+use async_trait::async_trait;
 
 use crate::{layers::Layer, tools::weights_to_array1};
 
@@ -15,6 +16,7 @@ impl RMSNorm {
     }
 }
 
+#[async_trait]
 impl Layer for RMSNorm {
     fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         let mut result = Array2::zeros((input.shape()[0], input.shape()[1]));
@@ -29,7 +31,7 @@ impl Layer for RMSNorm {
         Ok(result)
     }
     
-    fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
+    async fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
         todo!()
     }
 }

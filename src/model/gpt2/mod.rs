@@ -54,7 +54,7 @@ impl GPT2 {
         for i in 0..12 {
             res = self.attention_blocks[i].run(&res).await?;
         }
-        let res = self.layer_norm.run(res.into())?;
+        let res = self.layer_norm.run(res.into()).await?;
 
         let res = match res {
             TensorData::CpuData(test) => self

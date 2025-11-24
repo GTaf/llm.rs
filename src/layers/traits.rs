@@ -1,5 +1,6 @@
 use ndarray::Array2;
 use wgpu::Buffer;
+use async_trait::async_trait;
 
 pub enum TensorData {
     CpuData(Array2<f32>),
@@ -18,16 +19,17 @@ impl From<Buffer> for TensorData {
     }
 }
 
+#[async_trait]
 pub trait Layer: Send + Sync {
     fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>>;
-    fn run_gpu(&self, input: Buffer) -> anyhow::Result<Buffer>;
+    async fn run_gpu(&self, input: Buffer) -> anyhow::Result<Buffer>;
 }
 
 impl dyn Layer {
-    pub fn run(&self, input: TensorData) -> anyhow::Result<TensorData> {
+    pub async fn run(&self, input: TensorData) -> anyhow::Result<TensorData> {
         Ok(match input {
             TensorData::CpuData(array_base) => TensorData::CpuData(self.run_cpu(&array_base)?),
-            TensorData::GpuData(buffer) => TensorData::GpuData(self.run_gpu(buffer)?),
+            TensorData::GpuData(buffer) => TensorData::GpuData(self.run_gpu(buffer).await?),
         })
         
     }

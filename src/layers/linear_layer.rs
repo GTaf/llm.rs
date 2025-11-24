@@ -3,6 +3,7 @@ use std::sync::Arc;
 use crate::{gpu_backend::backend::{ComputePipeline, GpuBackend}, layers::Layer};
 use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
+use async_trait::async_trait;
 
 use crate::tools::{weights_to_array, weights_to_array1};
 
@@ -78,6 +79,7 @@ impl CpuLinearLayer {
     }
 }
 
+#[async_trait]
 impl Layer for LinearLayer {
     fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
         if let LinearLayer::Cpu(layer) = self  {
@@ -85,10 +87,9 @@ impl Layer for LinearLayer {
         } else {
             todo!()
         }
-        
     }
 
-    fn run_gpu(&self, input: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
+    async fn run_gpu(&self, input: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
         todo!()
     }
 }
