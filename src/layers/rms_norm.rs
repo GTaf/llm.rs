@@ -16,18 +16,20 @@ impl RMSNorm {
 }
 
 impl Layer for RMSNorm {
-    fn run(&self, input: &Array2<f32>) -> Array2<f32> {
+    fn run_cpu(&self, input: &Array2<f32>) -> Array2<f32> {
         let mut result = Array2::zeros((input.shape()[0], input.shape()[1]));
         for (i, input_row) in input.axis_iter(Axis(0)).enumerate() {
             let n = input_row.len() as f32;
             let var = input_row.mapv(|x| x.powi(2)).sum() / n;
             let rms = (var + 1e-5).sqrt();
-            let normalized = input_row.mapv(|x| x/rms);
-            result
-                .row_mut(i)
-                .assign(&(&normalized * &self.weight));
+            let normalized = input_row.mapv(|x| x / rms);
+            result.row_mut(i).assign(&(&normalized * &self.weight));
         }
 
         result
+    }
+    
+    fn run_gpu(&self, _: wgpu::Buffer) -> wgpu::Buffer {
+        todo!()
     }
 }

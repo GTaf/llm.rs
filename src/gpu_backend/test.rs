@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use ndarray::{Array2, Array1};
+use ndarray::{Array1, Array2};
 use pollster::FutureExt;
 
 use crate::gpu_backend::backend::{ComputePipeline, GpuBackend};
-
 
 #[test]
 fn test_gpu_backend_2x2() -> anyhow::Result<()> {

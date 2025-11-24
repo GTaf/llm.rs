@@ -9,7 +9,7 @@ use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
-    layers::{Layer, layer_norm::LayerNorm},
+    layers::{Layer, layer_norm::LayerNorm, traits::TensorData},
     linear_layer::{CpuLinearLayer, LinearLayer},
     model::LanguageModel,
 };
@@ -54,13 +54,17 @@ impl GPT2 {
         for i in 0..12 {
             res = self.attention_blocks[i].run(&res).await?;
         }
-        res = self.layer_norm.run(&res);
-        let res = self
+        let res = self.layer_norm.run(res.into());
+
+        let res = match res {
+            TensorData::CpuData(test) => self
             .linear_layer
-            .run(&res)
+            .run(&test)
             .await?
-            .row(res.shape()[0] - 1)
-            .to_owned();
+            .row(test.shape()[0] - 1)
+            .to_owned(),
+            TensorData::GpuData(_) => todo!(),
+        };
         Ok(res)
     }
 }

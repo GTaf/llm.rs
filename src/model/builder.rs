@@ -26,12 +26,12 @@ impl ModelBuilder {
 
         let tensor_weights = SafeTensors::deserialize(&model_weights).unwrap();
         match &self.config.qwen {
-            true => Box::new(
+            false => Box::new(
                 GPT2::new(&tensor_weights, self.config.use_gpu)
                     .await
                     .unwrap(),
             ),
-            false => Box::new(
+            true => Box::new(
                 Qwen3::new(&tensor_weights, self.config.use_gpu)
                     .await
                     .unwrap(),

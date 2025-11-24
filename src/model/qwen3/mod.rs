@@ -10,9 +10,10 @@ use crate::{
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
     layers::rms_norm::RMSNorm,
-    linear_layer::{CpuLinearLayer, LinearLayer},
-    model::LanguageModel,
     layers::traits::Layer,
+    linear_layer::{CpuLinearLayer, LinearLayer},
+    layers::traits::TensorData,
+    model::LanguageModel,
 };
 
 pub struct Qwen3 {
@@ -36,11 +37,13 @@ impl Qwen3 {
         }
         let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
         Ok(Self {
-            embedding_layer: EmbeddingLayer::new(tensor_weights, None, "model.embed_tokens.weight")?,
+            embedding_layer: EmbeddingLayer::new(
+                tensor_weights,
+                None,
+                "model.embed_tokens.weight",
+            )?,
             attention_blocks,
-            layer_norm: Box::new(RMSNorm::new(
-                tensor_weights.tensor("model.norm.weight")?
-            )?),
+            layer_norm: Box::new(RMSNorm::new(tensor_weights.tensor("model.norm.weight")?)?),
             linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("lm_head.weight")?,
             )?),
@@ -54,13 +57,16 @@ impl Qwen3 {
         for i in 0..12 {
             res = self.attention_blocks[i].run(&res).await?;
         }
-        res = self.layer_norm.run(&res);
-        let res = self
+        let res = self.layer_norm.run(res.into());
+        let res = match res {
+            TensorData::CpuData(test) => self
             .linear_layer
-            .run(&res)
+            .run(&test)
             .await?
-            .row(res.shape()[0] - 1)
-            .to_owned();
+            .row(test.shape()[0] - 1)
+            .to_owned(),
+            TensorData::GpuData(_) => todo!(),
+        };
         Ok(res)
     }
 }

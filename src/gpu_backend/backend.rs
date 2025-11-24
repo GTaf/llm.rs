@@ -1,7 +1,5 @@
 use bytemuck::{Pod, Zeroable};
 use flume::bounded;
-#[cfg(test)]
-use pollster::FutureExt;
 use std::sync::Arc;
 
 #[cfg(target_arch = "wasm32")]

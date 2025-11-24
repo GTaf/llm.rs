@@ -5,24 +5,20 @@ use ndarray::Array2;
 use safetensors::SafeTensors;
 
 use crate::gpu_backend::backend::GpuBackend;
+use crate::layers::gelu::Gelu;
 use crate::layers::layer_norm::LayerNorm;
+use crate::layers::traits::Layer;
 use crate::linear_layer::GpuLinearLayer;
 use crate::{
     linear_layer::CpuLinearLayer, linear_layer::LinearLayer, self_attention::SelfAttention,
 };
-use crate::layers::traits::Layer;
-
-pub fn gelu(x: &f32) -> f32 {
-    // 0.5 * x * (1.0 + ((2.0 / f32::consts::PI).sqrt() * (x + 0.044715 * x.powi(3))).tanh())
-    // x * normal_cdf(x)
-    0.5 * x * (1.0 + libm::erff(x / 2.0_f32.sqrt()))
-}
 
 pub struct AttentionBlock {
     pub layer_norm1: Box<dyn Layer>,
     pub attention_layer: SelfAttention,
     pub layer_norm2: Box<dyn Layer>,
     pub linear_1: LinearLayer,
+    pub gelu: Box<dyn Layer>,
     pub linear_2: LinearLayer,
 }
 
@@ -83,16 +79,17 @@ impl AttentionBlock {
             } else {
                 LinearLayer::Cpu(CpuLinearLayer::new(mlp_weights_proj, mlp_bias_proj)?)
             },
+            gelu: Box::new(Gelu::new()?),
         })
     }
 
     pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        let mut step = self.layer_norm1.run(input);
+        let mut step = self.layer_norm1.run_cpu(input);
         step = self.attention_layer.run(&step).await?;
         step += input;
-        let mut step_2 = self.layer_norm2.run(&step);
+        let mut step_2 = self.layer_norm2.run_cpu(&step);
         step_2 = self.linear_1.run(&step_2).await?;
-        step_2 = step_2.map(gelu);
+        step_2 = self.gelu.run_cpu(&step_2);
         step_2 = self.linear_2.run(&step_2).await?;
         Ok(step_2 + step)
     }
