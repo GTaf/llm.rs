@@ -9,7 +9,8 @@ use tokenizers::tokenizer::Tokenizer;
 use crate::{layers::Layer, model::gpt2::GPT2};
 
 #[derive(Deserialize, Debug)]
-struct Embeddings {
+struct Embeddings {#[serde(rename = "Raw tokens")]
+    raw_tokens: Vec<u32>,
     #[serde(rename = "Token embeddings")]
     _token_embeddings: Vec<f32>,
     #[serde(rename = "Position embeddings")]
@@ -69,6 +70,18 @@ where
         }
     }
     result
+}
+
+#[test]
+fn test_token() -> anyhow::Result<()> {
+    let (model, tokens, emb) = test_setup()?;
+    let first_result: Vec<u32> = emb.raw_tokens.iter().map(|u| *u as u32).collect();
+
+    assert_eq!(
+        tokens,
+        first_result
+    );
+    Ok(())
 }
 
 #[test]

@@ -16,6 +16,7 @@ model.eval()
 with torch.no_grad():
     saving_dict = dict()
     # Token embeddings
+    saving_dict["Raw tokens"] = input_ids[0].tolist()
     token_embeddings = model.transformer.wte(input_ids)
     saving_dict["Token embeddings"] = token_embeddings[0][0].tolist()
 
