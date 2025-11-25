@@ -18,8 +18,7 @@ impl Gelu {
 #[async_trait]
 impl Layer for Gelu {
     fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        let result = input.clone();
-        result.map(gelu);
+        let result = input.map(gelu);
         Ok(result)
     }
     
