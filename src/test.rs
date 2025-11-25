@@ -39,7 +39,7 @@ struct Embeddings {
 
 #[cfg(test)]
 fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
-    let input = "This test is going to ";
+    let input = "The main character of The lord of the rings is ";
     let data = fs::read_to_string("test/test_data.dump").unwrap();
     let emb: Embeddings = serde_json::from_str(&data).unwrap();
 
