@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use ndarray::Array1;
 use safetensors::SafeTensors;
-use tokenizers::tokenizer::Tokenizer;
+use tokenizers::{tokenizer::Tokenizer};
 
 use crate::{
     attention_block::AttentionBlock,
@@ -81,5 +81,9 @@ impl LanguageModel for GPT2 {
     }
     fn decode(&self, input: &[u32]) -> anyhow::Result<String> {
         Ok(self.tokenizer.decode(input, false).unwrap())
+    }
+
+    fn backend(&self) -> Option<Arc<GpuBackend>> {
+        self.gpu_backend.clone()
     }
 }

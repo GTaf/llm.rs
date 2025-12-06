@@ -1,12 +1,16 @@
-use ndarray::Array1;
+use ndarray::{Array1, Array2};
 #[cfg(test)]
 use pollster::FutureExt;
 use safetensors::SafeTensors;
 use serde::Deserialize;
+use wgpu::{util::{BufferInitDescriptor, DeviceExt}};
 use std::fs;
 use tokenizers::tokenizer::Tokenizer;
 
-use crate::{layers::traits::Tensor, model::gpt2::GPT2};
+use crate::{
+    layers::traits::{Shape, Tensor},
+    model::{LanguageModel, gpt2::GPT2},
+};
 
 #[derive(Deserialize, Debug)]
 struct Embeddings {
@@ -75,7 +79,7 @@ where
 
 #[test]
 fn test_token() -> anyhow::Result<()> {
-    let (model, tokens, emb) = test_setup()?;
+    let (_model, tokens, emb) = test_setup()?;
     let first_result: Vec<u32> = emb.raw_tokens.iter().map(|u| *u as u32).collect();
 
     assert_eq!(tokens, first_result);
@@ -181,6 +185,7 @@ fn test_layer_norm2() -> anyhow::Result<()> {
     Ok(())
 }
 
+
 #[test]
 fn test_layer_mlp_lin1() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
@@ -191,9 +196,31 @@ fn test_layer_mlp_lin1() -> anyhow::Result<()> {
     let output = attention_block
         .layer_norm2
         .run_cpu(&(output + embeddings))?;
-    let output = Tensor::new_cpu(output);
+    let output = match model.backend() {
+        Some(backend) => {
+            let shape = Shape::from(&output);
+            let data = backend.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(output.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(data, shape)
+        }
+        None => Tensor::new_cpu(output),
+    };
     let mlp_output = attention_block.linear_1.run(output).block_on()?;
-    let mlp_output = mlp_output.data_cpu();
+    let mlp_output_data = mlp_output.data_gpu();
+
+    let mlp_output_range = mlp_output_data.get_mapped_range(..);
+    let raw_data: &[f32] = bytemuck::cast_slice(&mlp_output_range);
+    let shape = mlp_output.shape();
+    let mlp_output = Array2::from_shape_vec(
+        (shape.rows as usize, shape.columns as usize),
+        raw_data.to_vec(),
+    )
+    .unwrap();
+
+
     let tested_row = mlp_output.row(0);
     assert!(test_proximity_threshold(
         tested_row,

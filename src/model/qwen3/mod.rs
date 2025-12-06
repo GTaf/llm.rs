@@ -82,4 +82,7 @@ impl LanguageModel for Qwen3 {
     fn decode(&self, input: &[u32]) -> anyhow::Result<String> {
         Ok(self.tokenizer.decode(input, false).unwrap())
     }
+    fn backend(&self) -> Option<Arc<GpuBackend>> {
+        self.gpu_backend.clone()
+    }
 }
