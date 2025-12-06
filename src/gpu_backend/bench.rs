@@ -1,7 +1,20 @@
 use llmrs::gpu_backend::backend::{ComputePipeline, GpuBackend};
+use llmrs::layers::traits::{Shape, Tensor};
 use ndarray::{Array1, Array2};
 use pollster::FutureExt;
 use std::sync::Arc;
+use wgpu::{
+    Buffer, Device,
+    util::{BufferInitDescriptor, DeviceExt},
+};
+
+fn ndarray_to_gpubuffer(input: &Array2<f32>, device: &Device) -> Buffer {
+    device.create_buffer_init(&BufferInitDescriptor {
+        label: Some("input_buffer"),
+        contents: bytemuck::cast_slice(input.as_slice().unwrap()),
+        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+    })
+}
 
 fn main() -> anyhow::Result<()> {
     use rand::Rng;
@@ -23,11 +36,20 @@ fn main() -> anyhow::Result<()> {
             .map(|_| rng.gen_range(0., 4.))
             .collect::<Vec<f32>>(),
     )?;
+
+    let input_buffer = ndarray_to_gpubuffer(&input, &backend.device);
     for timestamp in timestamps.iter_mut().take(10) {
         let compute_pipeline =
             ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias.clone());
         let _output = compute_pipeline
-            .compute_timestamp(input.clone(), Some(timestamp))
+            .compute_timestamp(
+                &input_buffer,
+                Some(timestamp),
+                &Shape {
+                    columns: m,
+                    rows: k,
+                },
+            )
             .block_on()?;
     }
 

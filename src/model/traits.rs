@@ -1,5 +1,17 @@
 use async_trait::async_trait;
 use ndarray::Array1;
+use wgpu::{Device, Queue};
+
+pub enum BackendType {
+    Cpu,
+    Gpu,
+}
+
+pub struct ModelContext {
+    pub device: Device,
+    pub queue: Queue,
+    pub backend: BackendType,
+}
 
 #[async_trait]
 pub trait LanguageModel {

@@ -2,11 +2,15 @@ use ndarray::{Array2, Array3, Axis, s};
 use safetensors::tensor::TensorView;
 
 use crate::{
-    layers::linear_layer::CpuLinearLayer, layers::linear_layer::LinearLayer, tools::weights_to_array_causal,
+    layers::{
+        Layer,
+        linear_layer::{CpuLinearLayer, LinearLayer},
+    },
+    tools::weights_to_array_causal,
 };
 pub struct SelfAttention {
-    pub linear_expand: LinearLayer,
-    pub linear_project: LinearLayer,
+    pub linear_expand: Box<dyn Layer>,
+    pub linear_project: Box<dyn Layer>,
     pub causal_mask: Array2<f32>,
     head_number: usize,
 }
@@ -32,8 +36,14 @@ impl SelfAttention {
     ) -> anyhow::Result<Self> {
         let head_number = 12_usize;
         Ok(SelfAttention {
-            linear_expand: LinearLayer::Cpu(CpuLinearLayer::new(attn_weights, attn_bias)?),
-            linear_project: LinearLayer::Cpu(CpuLinearLayer::new(linproj_weights, linproj_bias)?),
+            linear_expand: Box::new(LinearLayer::Cpu(CpuLinearLayer::new(
+                attn_weights,
+                attn_bias,
+            )?)),
+            linear_project: Box::new(LinearLayer::Cpu(CpuLinearLayer::new(
+                linproj_weights,
+                linproj_bias,
+            )?)),
             causal_mask: weights_to_array_causal(&causal)?,
             head_number,
         })
@@ -57,7 +67,7 @@ impl SelfAttention {
         let embeddings_dim = input.shape()[1];
         let token_len = input.shape()[0];
         let head_dim = embeddings_dim / self.head_number;
-        let expanded = self.linear_expand.run(input).await?;
+        let expanded = self.linear_expand.run_cpu(input)?;
         let q = expanded.slice(s![.., 0..embeddings_dim]);
         let k = expanded.slice(s![.., embeddings_dim..2 * embeddings_dim]);
         let v = expanded.slice(s![.., 2 * embeddings_dim..]);
@@ -86,6 +96,6 @@ impl SelfAttention {
         attention.swap_axes(1, 0);
         let attention = attention.to_shape((token_len, embeddings_dim))?.to_owned();
 
-        self.linear_project.run(&attention).await
+        self.linear_project.run_cpu(&attention)
     }
 }

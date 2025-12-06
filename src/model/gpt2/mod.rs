@@ -9,16 +9,20 @@ use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
-    layers::{Layer, layer_norm::LayerNorm, traits::TensorData},
-    layers::linear_layer::{CpuLinearLayer, LinearLayer},
+    layers::{
+        Layer,
+        layer_norm::LayerNorm,
+        linear_layer::{CpuLinearLayer, LinearLayer},
+    },
     model::LanguageModel,
 };
 
 pub struct GPT2 {
+    gpu_backend: Option<Arc<GpuBackend>>,
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
     pub layer_norm: Box<dyn Layer>,
-    pub linear_layer: LinearLayer,
+    pub linear_layer: Box<dyn Layer>,
     tokenizer: Tokenizer,
 }
 
@@ -35,15 +39,16 @@ impl GPT2 {
         }
         let tokenizer = Tokenizer::from_file("src/model/gpt2/tokenizer.json").unwrap();
         Ok(Self {
+            gpu_backend,
             embedding_layer: EmbeddingLayer::new(tensor_weights, Some("wpe.weight"), "wte.weight")?,
             attention_blocks,
             layer_norm: Box::new(LayerNorm::new(
                 tensor_weights.tensor("ln_f.weight")?,
                 tensor_weights.tensor("ln_f.bias")?,
             )?),
-            linear_layer: LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
+            linear_layer: Box::new(LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("wte.weight")?,
-            )?),
+            )?)),
             tokenizer,
         })
     }
@@ -52,20 +57,15 @@ impl GPT2 {
         let embedding = self.embedding_layer.run(input);
         let mut res = embedding;
         for i in 0..12 {
-            res = self.attention_blocks[i].run(&res).await?;
+            res = self.attention_blocks[i]
+                .run(&res, self.gpu_backend.clone())
+                .await?;
         }
-        let res = self.layer_norm.run(res.into()).await?;
+        let res = self.layer_norm.run_cpu(&res)?;
 
-        let res = match res {
-            TensorData::CpuData(test) => self
-            .linear_layer
-            .run(&test)
-            .await?
-            .row(test.shape()[0] - 1)
-            .to_owned(),
-            TensorData::GpuData(_) => todo!(),
-        };
-        Ok(res)
+        let res = self.linear_layer.run_cpu(&res)?;
+        let result = res.row(res.shape()[0] - 1).to_owned();
+        Ok(result)
     }
 }
 

@@ -11,16 +11,13 @@ use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
 };
 
-#[repr(C, align(16))]
-#[derive(Debug, Copy, Clone)]
-struct Shape {
-    m: u32,
-    k: u32,
-    n: u32,
-}
+use crate::{
+    gpu_backend::ComputeShape,
+    layers::traits::{Shape, Tensor},
+};
 
-unsafe impl Zeroable for Shape {}
-unsafe impl Pod for Shape {}
+unsafe impl Zeroable for ComputeShape {}
+unsafe impl Pod for ComputeShape {}
 
 pub struct GpuBackend {
     pub device: Arc<Device>,
@@ -29,7 +26,7 @@ pub struct GpuBackend {
 
 pub struct ComputePipeline {
     pipeline: wgpu::ComputePipeline,
-    weights: Buffer,
+    weights: Tensor,
     bias: Buffer,
     backend: Arc<GpuBackend>,
 }
@@ -86,11 +83,13 @@ impl ComputePipeline {
                 cache: Default::default(),
             });
 
+        let wshape = Shape::from(&weights);
         let weights = backend.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("weights"),
             contents: bytemuck::cast_slice(weights.as_slice().unwrap()),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
         });
+        let weights = Tensor::new_gpu(weights, wshape);
 
         let bias = backend.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("bias"),
@@ -106,29 +105,32 @@ impl ComputePipeline {
         }
     }
 
-    pub async fn compute(&self, input: Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        self.compute_timestamp(input, None).await
+    pub async fn compute(
+        &self,
+        input: &wgpu::Buffer,
+        shape: &Shape,
+    ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
+        self.compute_timestamp(input, None, shape).await
     }
 
     pub async fn compute_timestamp(
         &self,
-        input: Array2<f32>,
+        input_buffer: &wgpu::Buffer,
         timestamp: Option<&mut f64>,
-    ) -> anyhow::Result<Array2<f32>> {
+        input_shape: &Shape,
+    ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         let device = &self.backend.device;
         let queue = &self.backend.queue;
 
-        let shape = Shape {
-            m: input.shape()[0] as u32,
-            k: input.shape()[1] as u32,
-            n: self.bias.size() as u32 / 4,
+        println!("Input shape {:?}", input_shape);
+
+        let shape = ComputeShape {
+            m: input_shape.rows as u32,
+            k: input_shape.columns as u32,
+            n: self.weights.shape().columns as u32,
         };
 
-        let input_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("input_buffer"),
-            contents: bytemuck::cast_slice(input.as_slice().unwrap()),
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
-        });
+        println!("Compute shape {:?}", shape);
 
         let output_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("output"),
@@ -177,7 +179,7 @@ impl ComputePipeline {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: self.weights.as_entire_binding(),
+                    resource: self.weights.data_gpu().as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
@@ -264,9 +266,15 @@ impl ComputePipeline {
 
         // We need to unmap the buffer to be able to use it again
         // temp_buffer.unmap();
-        let output =
+        let _output =
             Array2::from_shape_vec((shape.m as usize, shape.n as usize), raw_data.to_vec())
                 .unwrap();
-        Ok(output)
+        println!("{:?}", _output);
+        let output_shape = Shape {
+            columns: shape.n as usize,
+            rows: shape.m as usize,
+        };
+        println!("Output shape {:?}", output_shape);
+        Ok((temp_buffer, output_shape))
     }
 }

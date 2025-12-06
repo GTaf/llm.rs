@@ -1,8 +1,11 @@
+use async_trait::async_trait;
 use ndarray::{Array1, Array2, Axis};
 use safetensors::tensor::TensorView;
-use async_trait::async_trait;
 
-use crate::{layers::Layer, tools::weights_to_array1};
+use crate::{
+    layers::{Layer, traits::Shape},
+    tools::weights_to_array1,
+};
 
 pub struct RMSNorm {
     weight: Array1<f32>,
@@ -30,8 +33,8 @@ impl Layer for RMSNorm {
 
         Ok(result)
     }
-    
-    async fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
+
+    async fn run_gpu(&self, _: wgpu::Buffer, _: &Shape) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         todo!()
     }
 }

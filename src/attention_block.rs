@@ -3,23 +3,25 @@ use std::sync::Arc;
 
 use ndarray::Array2;
 use safetensors::SafeTensors;
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::gpu_backend::backend::GpuBackend;
 use crate::layers::gelu::Gelu;
 use crate::layers::layer_norm::LayerNorm;
-use crate::layers::traits::Layer;
 use crate::layers::linear_layer::GpuLinearLayer;
+use crate::layers::traits::{Layer, Shape, Tensor, TensorData};
 use crate::{
-    layers::linear_layer::CpuLinearLayer, layers::linear_layer::LinearLayer, self_attention::SelfAttention,
+    layers::linear_layer::CpuLinearLayer, layers::linear_layer::LinearLayer,
+    self_attention::SelfAttention,
 };
 
 pub struct AttentionBlock {
     pub layer_norm1: Box<dyn Layer>,
     pub attention_layer: SelfAttention,
     pub layer_norm2: Box<dyn Layer>,
-    pub linear_1: LinearLayer,
+    pub linear_1: Box<dyn Layer>,
     pub gelu: Box<dyn Layer>,
-    pub linear_2: LinearLayer,
+    pub linear_2: Box<dyn Layer>,
 }
 
 pub enum NormType {
@@ -65,12 +67,12 @@ impl AttentionBlock {
                 causal_weights,
             )?,
             layer_norm2: Box::new(LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?),
-            linear_1: if let Some(ref bck) = gpu_backend {
+            linear_1: Box::new(if let Some(ref bck) = gpu_backend {
                 LinearLayer::Gpu(GpuLinearLayer::new(bck.clone(), mlp_weights_1, mlp_bias_1)?)
             } else {
                 LinearLayer::Cpu(CpuLinearLayer::new(mlp_weights_1, mlp_bias_1)?)
-            },
-            linear_2: if let Some(ref bck) = gpu_backend {
+            }),
+            linear_2: Box::new(if let Some(ref bck) = gpu_backend {
                 LinearLayer::Gpu(GpuLinearLayer::new(
                     bck.clone(),
                     mlp_weights_proj,
@@ -78,19 +80,43 @@ impl AttentionBlock {
                 )?)
             } else {
                 LinearLayer::Cpu(CpuLinearLayer::new(mlp_weights_proj, mlp_bias_proj)?)
-            },
+            }),
             gelu: Box::new(Gelu::new()?),
         })
     }
 
-    pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
+    pub async fn run(
+        &self,
+        input: &Array2<f32>,
+        gpu_backend: Option<Arc<GpuBackend>>,
+    ) -> anyhow::Result<Array2<f32>> {
         let mut step = self.layer_norm1.run_cpu(input)?;
         step = self.attention_layer.run(&step).await?;
         step += input;
-        let mut step_2 = self.layer_norm2.run_cpu(&step)?;
-        step_2 = self.linear_1.run(&step_2).await?;
-        step_2 = self.gelu.run_cpu(&step_2)?;
-        step_2 = self.linear_2.run(&step_2).await?;
+        let step_2 = self.layer_norm2.run_cpu(&step)?;
+
+        let step_2: Tensor = if let Some(back) = gpu_backend {
+            let shape = Shape::from(input);
+            let input_buffer = back.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(input.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(input_buffer, shape)
+        } else {
+            Tensor::new_cpu(step_2)
+        };
+
+        let step_2 = self.linear_1.run(step_2).await?;
+        let step_2 = self.gelu.run(step_2).await?;
+        let step_2 = self.linear_2.run(step_2).await?;
+
+        let step_2 = match step_2.data() {
+            TensorData::CpuData(array_base) => array_base,
+            TensorData::GpuData(_) => todo!(),
+        };
+
+        // get data back to cpu
         Ok(step_2 + step)
     }
 }

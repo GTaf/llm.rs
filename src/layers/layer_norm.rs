@@ -1,7 +1,10 @@
 use ndarray::{Array1, Array2, Axis};
 use safetensors::tensor::TensorView;
 
-use crate::{layers::Layer, tools::weights_to_array1};
+use crate::{
+    layers::{Layer, traits::Shape},
+    tools::weights_to_array1,
+};
 use async_trait::async_trait;
 
 pub struct LayerNorm {
@@ -38,8 +41,12 @@ impl Layer for LayerNorm {
 
         Ok(result)
     }
-    
-    async fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
+
+    async fn run_gpu(
+        &self,
+        _: wgpu::Buffer,
+        _shape: &Shape,
+    ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         todo!()
     }
 }

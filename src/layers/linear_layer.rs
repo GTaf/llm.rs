@@ -1,24 +1,18 @@
 use std::sync::Arc;
 
-use crate::{gpu_backend::backend::{ComputePipeline, GpuBackend}, layers::Layer};
+use crate::{
+    gpu_backend::backend::{ComputePipeline, GpuBackend},
+    layers::{Layer, traits::Shape},
+};
+use async_trait::async_trait;
 use ndarray::{Array1, Array2};
 use safetensors::tensor::TensorView;
-use async_trait::async_trait;
 
 use crate::tools::{weights_to_array, weights_to_array1};
 
 pub enum LinearLayer {
     Cpu(CpuLinearLayer),
     Gpu(GpuLinearLayer),
-}
-
-impl LinearLayer {
-    pub async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        match self {
-            LinearLayer::Cpu(cpu) => cpu.run(input),
-            LinearLayer::Gpu(gpu) => gpu.run(input).await,
-        }
-    }
 }
 
 pub struct GpuLinearLayer {
@@ -68,8 +62,12 @@ impl GpuLinearLayer {
 }
 
 impl GpuLinearLayer {
-    async fn run(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        self.compute_pipeline.compute(input.to_owned()).await
+    async fn run(
+        &self,
+        input: wgpu::Buffer,
+        shape: &Shape,
+    ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
+        self.compute_pipeline.compute(&input, shape).await
     }
 }
 
@@ -82,14 +80,22 @@ impl CpuLinearLayer {
 #[async_trait]
 impl Layer for LinearLayer {
     fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>> {
-        if let LinearLayer::Cpu(layer) = self  {
+        if let LinearLayer::Cpu(layer) = self {
             layer.run(input)
         } else {
             todo!()
         }
     }
 
-    async fn run_gpu(&self, input: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
-        todo!()
+    async fn run_gpu(
+        &self,
+        input: wgpu::Buffer,
+        shape: &Shape,
+    ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
+        if let LinearLayer::Gpu(layer) = self {
+            layer.run(input, shape).await
+        } else {
+            todo!()
+        }
     }
 }

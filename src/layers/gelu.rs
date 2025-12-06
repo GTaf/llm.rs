@@ -1,6 +1,6 @@
 use ndarray::Array2;
 
-use crate::layers::Layer;
+use crate::layers::{Layer, traits::Shape};
 use async_trait::async_trait;
 
 pub fn gelu(x: &f32) -> f32 {
@@ -21,8 +21,8 @@ impl Layer for Gelu {
         let result = input.map(gelu);
         Ok(result)
     }
-    
-    async fn run_gpu(&self, _: wgpu::Buffer) -> anyhow::Result<wgpu::Buffer> {
+
+    async fn run_gpu(&self, _: wgpu::Buffer, _: &Shape) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         todo!()
     }
 }

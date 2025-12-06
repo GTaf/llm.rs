@@ -9,14 +9,14 @@ use crate::{
     attention_block::AttentionBlock,
     embedding_layer::EmbeddingLayer,
     gpu_backend::backend::GpuBackend,
+    layers::linear_layer::{CpuLinearLayer, LinearLayer},
     layers::rms_norm::RMSNorm,
     layers::traits::Layer,
-    layers::linear_layer::{CpuLinearLayer, LinearLayer},
-    layers::traits::TensorData,
     model::LanguageModel,
 };
 
 pub struct Qwen3 {
+    gpu_backend: Option<Arc<GpuBackend>>,
     pub embedding_layer: EmbeddingLayer,
     pub attention_blocks: Vec<AttentionBlock>,
     pub layer_norm: Box<dyn Layer>,
@@ -37,6 +37,7 @@ impl Qwen3 {
         }
         let tokenizer = Tokenizer::from_file("src/model/qwen3/tokenizer.json").unwrap();
         Ok(Self {
+            gpu_backend,
             embedding_layer: EmbeddingLayer::new(
                 tensor_weights,
                 None,
@@ -55,19 +56,15 @@ impl Qwen3 {
         let embedding = self.embedding_layer.run(input);
         let mut res = embedding;
         for i in 0..12 {
-            res = self.attention_blocks[i].run(&res).await?;
+            res = self.attention_blocks[i]
+                .run(&res, self.gpu_backend.clone())
+                .await?;
         }
-        let res = self.layer_norm.run(res.into()).await?;
-        let res = match res {
-            TensorData::CpuData(test) => self
-            .linear_layer
-            .run(&test)
-            .await?
-            .row(test.shape()[0] - 1)
-            .to_owned(),
-            TensorData::GpuData(_) => todo!(),
-        };
-        Ok(res)
+        let res = self.layer_norm.run_cpu(&res)?;
+
+        let res = self.linear_layer.run_cpu(&res)?;
+        let result = res.row(res.shape()[0] - 1).to_owned();
+        Ok(result)
     }
 }
 
