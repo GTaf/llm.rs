@@ -59,7 +59,7 @@ impl AttentionBlock {
         let causal_weights = tensor_weights.tensor(&format!("h.{index}.attn.bias"))?;
 
         Ok(Self {
-            layer_norm1: Box::new(LayerNorm::new(layer_norm_weights_1, layer_norm_bias_1)?),
+            layer_norm1: Box::new(LayerNorm::new(layer_norm_weights_1, layer_norm_bias_1, None)?),
             attention_layer: SelfAttention::new(
                 linproj_weights,
                 linproj_bias,
@@ -67,7 +67,7 @@ impl AttentionBlock {
                 attn_bias,
                 causal_weights,
             )?,
-            layer_norm2: Box::new(LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2)?),
+            layer_norm2: Box::new(LayerNorm::new(layer_norm_weights_2, layer_norm_bias_2, gpu_backend.clone())?),
             linear_1: Box::new(if let Some(ref bck) = gpu_backend {
                 LinearLayer::Gpu(GpuLinearLayer::new(bck.clone(), mlp_weights_1, mlp_bias_1)?)
             } else {
@@ -94,19 +94,20 @@ impl AttentionBlock {
         let mut step = self.layer_norm1.run_cpu(input)?;
         step = self.attention_layer.run(&step).await?;
         step += input;
-        let step_2 = self.layer_norm2.run_cpu(&step)?;
-
-        let step_2: Tensor = if let Some(back) = backend.clone() {
-            let shape = Shape::from(&step_2);
+        let step_t = step.clone();
+        let step_t: Tensor = if let Some(back) = backend.clone() {
+            let shape = Shape::from(&step_t);
             let input_buffer = back.device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("input_buffer"),
-                contents: bytemuck::cast_slice(step_2.as_slice().unwrap()),
+                contents: bytemuck::cast_slice(step_t.as_slice().unwrap()),
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
             });
             Tensor::new_gpu(input_buffer, shape)
         } else {
-            Tensor::new_cpu(step_2)
+            Tensor::new_cpu(step_t)
         };
+
+        let step_2 = self.layer_norm2.run(step_t).await?;
 
         let step_2 = self.linear_1.run(step_2).await?;
         let step_2 = self.gelu.run(step_2).await?;
