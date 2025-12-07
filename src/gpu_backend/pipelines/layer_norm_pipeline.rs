@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
 use ndarray::Array1;
-use wgpu::{Buffer, util::{BufferInitDescriptor, DeviceExt}};
+use wgpu::{
+    Buffer,
+    util::{BufferInitDescriptor, DeviceExt},
+};
 
 use crate::{
     gpu_backend::{ComputeShape, backend::GpuBackend},
-    layers::traits::{Shape, Tensor},
+    layers::traits::Shape,
 };
 
 pub struct LayerNormComputePipeline {
@@ -16,11 +19,7 @@ pub struct LayerNormComputePipeline {
 }
 
 impl LayerNormComputePipeline {
-    pub fn new_pipeline(
-        backend: Arc<GpuBackend>,
-        weights: Array1<f32>,
-        bias: Array1<f32>,
-    ) -> Self {
+    pub fn new_pipeline(backend: Arc<GpuBackend>, weights: Array1<f32>, bias: Array1<f32>) -> Self {
         let shader = backend
             .device
             .create_shader_module(wgpu::include_wgsl!("../layer_norm.wgsl"));
@@ -35,7 +34,6 @@ impl LayerNormComputePipeline {
                 compilation_options: Default::default(),
                 cache: Default::default(),
             });
-
 
         let weights = backend.device.create_buffer_init(&BufferInitDescriptor {
             label: Some("weights"),
@@ -68,7 +66,7 @@ impl LayerNormComputePipeline {
     pub async fn compute_timestamp(
         &self,
         input_buffer: &wgpu::Buffer,
-        timestamp: Option<&mut f64>,
+        _timestamp: Option<&mut f64>,
         input_shape: &Shape,
     ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         let device = &self.backend.device;
@@ -123,7 +121,7 @@ impl LayerNormComputePipeline {
             let mut pass = encoder.begin_compute_pass(&Default::default());
             pass.set_pipeline(&self.pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
-            pass.dispatch_workgroups(shape.m.div_ceil(16*16), 1, 1); // Run one core per row
+            pass.dispatch_workgroups(shape.m.div_ceil(16 * 16), 1, 1); // Run one core per row
         }
 
         queue.submit([encoder.finish()]);

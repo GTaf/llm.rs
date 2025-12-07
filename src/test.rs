@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2, s};
+use ndarray::{Array1, s};
 #[cfg(test)]
 use pollster::FutureExt;
 use safetensors::SafeTensors;
@@ -7,7 +7,6 @@ use std::fs;
 use tokenizers::tokenizer::Tokenizer;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
-use flume::bounded;
 
 use crate::{
     gpu_backend::backend::gpu_buffer_to_array2,
@@ -254,10 +253,8 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
         }
         None => Tensor::new_cpu(output),
     };
-    let output = attention_block
-        .layer_norm2
-        .run(output).block_on()?;
-    
+    let output = attention_block.layer_norm2.run(output).block_on()?;
+
     let mlp_output = attention_block.linear_1.run(output).block_on()?;
     let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
     let mlp_output = match model.backend() {

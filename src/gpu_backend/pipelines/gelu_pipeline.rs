@@ -46,7 +46,7 @@ impl GeLUComputePipeline {
     pub async fn compute_timestamp(
         &self,
         input_buffer: &wgpu::Buffer,
-        timestamp: Option<&mut f64>,
+        _timestamp: Option<&mut f64>,
         input_shape: &Shape,
     ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         let device = &self.backend.device;

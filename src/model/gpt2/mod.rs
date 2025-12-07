@@ -45,7 +45,7 @@ impl GPT2 {
             layer_norm: Box::new(LayerNorm::new(
                 tensor_weights.tensor("ln_f.weight")?,
                 tensor_weights.tensor("ln_f.bias")?,
-                gpu_backend.clone()
+                gpu_backend.clone(),
             )?),
             linear_layer: Box::new(LinearLayer::Cpu(CpuLinearLayer::new_no_bias(
                 tensor_weights.tensor("wte.weight")?,

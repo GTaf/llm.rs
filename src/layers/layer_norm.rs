@@ -4,7 +4,9 @@ use ndarray::{Array1, Array2, Axis};
 use safetensors::tensor::TensorView;
 
 use crate::{
-    gpu_backend::{backend::GpuBackend, pipelines::{layer_norm_pipeline::LayerNormComputePipeline}}, layers::{Layer, traits::Shape}, tools::weights_to_array1
+    gpu_backend::{backend::GpuBackend, pipelines::layer_norm_pipeline::LayerNormComputePipeline},
+    layers::{Layer, traits::Shape},
+    tools::weights_to_array1,
 };
 use async_trait::async_trait;
 
@@ -15,15 +17,25 @@ pub struct LayerNorm {
 }
 
 impl LayerNorm {
-    pub fn new(weights: TensorView, bias: TensorView, gpu_backend: Option<Arc<GpuBackend>>) -> anyhow::Result<Self> {
+    pub fn new(
+        weights: TensorView,
+        bias: TensorView,
+        gpu_backend: Option<Arc<GpuBackend>>,
+    ) -> anyhow::Result<Self> {
         let bias = weights_to_array1(&bias)?;
         let weight = weights_to_array1(&weights)?;
         let pipeline = match gpu_backend {
-            Some(backend) => Some(LayerNormComputePipeline::new_pipeline(backend, weight.clone(), bias.clone())),
-            None => None
+            Some(backend) => Some(LayerNormComputePipeline::new_pipeline(
+                backend,
+                weight.clone(),
+                bias.clone(),
+            )),
+            None => None,
         };
         Ok(Self {
-            pipeline, bias, weight,
+            pipeline,
+            bias,
+            weight,
         })
     }
 }
