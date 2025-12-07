@@ -9,7 +9,7 @@ use wgpu::{
 
 use crate::{
     gpu_backend::{
-        ComputeShape, backend::GpuBackend, pipelines::linear_pipeline::LinearComputePipeline,
+        ComputeShape, backend::{GpuBackend, gpu_buffer_to_array2}, pipelines::linear_pipeline::LinearComputePipeline,
     },
     layers::traits::Shape,
 };
@@ -20,17 +20,6 @@ fn ndarray_to_gpubuffer(input: &Array2<f32>, device: &Device) -> Buffer {
         contents: bytemuck::cast_slice(input.as_slice().unwrap()),
         usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
     })
-}
-
-fn gpubuffer_to_ndarray(input: Buffer, shape: Shape) -> Array2<f32> {
-    let output_data = input.get_mapped_range(..);
-    let raw_data: &[f32] = bytemuck::cast_slice(&output_data);
-
-    Array2::from_shape_vec(
-        (shape.rows, shape.columns),
-        raw_data.to_vec(),
-    )
-    .unwrap()
 }
 
 // Main test function for matrix multiplication on GPU
@@ -56,7 +45,7 @@ fn test_gpu_matmul(
             },
         )
         .block_on()?;
-    let result_array = gpubuffer_to_ndarray(output.0, output.1);
+    let result_array = gpu_buffer_to_array2(backend.clone().as_ref(), output.0, output.1).block_on()?;
     if let Some(expected) = expected {
         let expected = Array2::from_shape_vec((shape.m as usize, shape.n as usize), expected)?;
         assert_eq!(result_array, expected);
