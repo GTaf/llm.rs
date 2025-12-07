@@ -1,4 +1,5 @@
 pub mod backend;
+pub mod pipelines;
 mod test;
 
 #[repr(C, align(16))]

@@ -12,6 +12,9 @@ Build with `wasm-pack build --target web`
 
 Run website with `python3 -m http.server 8000`
 
+For some bench : `cargo run --release --bin bench-gemm`
+Fo running local model only : `cargo run --release -- --use-gpu` 
+
 # TODO
 - [x] Use tiktoken encoder to tranform sentence to tokens list
 - [x] Need to find token -> embedding mapping in GPT-2

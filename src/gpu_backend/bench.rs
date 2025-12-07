@@ -1,5 +1,6 @@
-use llmrs::gpu_backend::backend::{ComputePipeline, GpuBackend};
-use llmrs::layers::traits::{Shape, Tensor};
+use llmrs::gpu_backend::backend::GpuBackend;
+use llmrs::gpu_backend::pipelines::linear_pipeline::LinearComputePipeline;
+use llmrs::layers::traits::Shape;
 use ndarray::{Array1, Array2};
 use pollster::FutureExt;
 use std::sync::Arc;
@@ -40,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     let input_buffer = ndarray_to_gpubuffer(&input, &backend.device);
     for timestamp in timestamps.iter_mut().take(10) {
         let compute_pipeline =
-            ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias.clone());
+            LinearComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias.clone());
         let _output = compute_pipeline
             .compute_timestamp(
                 &input_buffer,

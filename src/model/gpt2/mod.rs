@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use ndarray::Array1;
 use safetensors::SafeTensors;
-use tokenizers::{tokenizer::Tokenizer};
+use tokenizers::tokenizer::Tokenizer;
 
 use crate::{
     attention_block::AttentionBlock,

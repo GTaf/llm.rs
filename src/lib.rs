@@ -92,7 +92,7 @@ pub async fn run_model(input: String, model_bytes: &[u8], use_gpu: bool) -> anyh
 
     let mut tokens = model.encode(input)?;
 
-    for _ in 0..10 {
+    for _ in 0..50 {
         let full_out = model.run(&tokens).await?;
 
         tokens.push(choose_token(&full_out, 0.6, 20, 0.95) as u32);

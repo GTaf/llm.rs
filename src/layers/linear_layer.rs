@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    gpu_backend::backend::{ComputePipeline, GpuBackend},
+    gpu_backend::{backend::GpuBackend, pipelines::linear_pipeline::LinearComputePipeline},
     layers::{Layer, traits::Shape},
 };
 use async_trait::async_trait;
@@ -16,7 +16,7 @@ pub enum LinearLayer {
 }
 
 pub struct GpuLinearLayer {
-    compute_pipeline: ComputePipeline,
+    compute_pipeline: LinearComputePipeline,
 }
 
 pub struct CpuLinearLayer {
@@ -45,7 +45,7 @@ impl GpuLinearLayer {
         weights: TensorView,
         bias: TensorView,
     ) -> anyhow::Result<Self> {
-        let compute_pipeline = ComputePipeline::new_pipeline(
+        let compute_pipeline = LinearComputePipeline::new_pipeline(
             backend.clone(),
             weights_to_array(&weights)?,
             weights_to_array1(&bias)?,
@@ -56,7 +56,7 @@ impl GpuLinearLayer {
     pub fn _new_no_bias(backend: Arc<GpuBackend>, weights: TensorView) -> anyhow::Result<Self> {
         let weight = weights_to_array(&weights)?.t().to_owned();
         let bias = Array1::zeros(weight.shape()[1]);
-        let compute_pipeline = ComputePipeline::new_pipeline(backend.clone(), weight, bias);
+        let compute_pipeline = LinearComputePipeline::new_pipeline(backend.clone(), weight, bias);
         Ok(Self { compute_pipeline })
     }
 }

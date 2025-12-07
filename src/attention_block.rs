@@ -1,11 +1,12 @@
 use std::f32;
 use std::sync::Arc;
 
+use flume::bounded;
 use ndarray::Array2;
 use safetensors::SafeTensors;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
-use crate::gpu_backend::backend::GpuBackend;
+use crate::gpu_backend::backend::{self, GpuBackend, gpu_buffer_to_array2};
 use crate::layers::gelu::Gelu;
 use crate::layers::layer_norm::LayerNorm;
 use crate::layers::linear_layer::GpuLinearLayer;
@@ -81,25 +82,25 @@ impl AttentionBlock {
             } else {
                 LinearLayer::Cpu(CpuLinearLayer::new(mlp_weights_proj, mlp_bias_proj)?)
             }),
-            gelu: Box::new(Gelu::new()?),
+            gelu: Box::new(Gelu::new(gpu_backend)?),
         })
     }
 
     pub async fn run(
         &self,
         input: &Array2<f32>,
-        gpu_backend: Option<Arc<GpuBackend>>,
+        backend: Option<Arc<GpuBackend>>,
     ) -> anyhow::Result<Array2<f32>> {
         let mut step = self.layer_norm1.run_cpu(input)?;
         step = self.attention_layer.run(&step).await?;
         step += input;
         let step_2 = self.layer_norm2.run_cpu(&step)?;
 
-        let step_2: Tensor = if let Some(back) = gpu_backend {
-            let shape = Shape::from(input);
+        let step_2: Tensor = if let Some(back) = backend.clone() {
+            let shape = Shape::from(&step_2);
             let input_buffer = back.device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("input_buffer"),
-                contents: bytemuck::cast_slice(input.as_slice().unwrap()),
+                contents: bytemuck::cast_slice(step_2.as_slice().unwrap()),
                 usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
             });
             Tensor::new_gpu(input_buffer, shape)
@@ -111,12 +112,15 @@ impl AttentionBlock {
         let step_2 = self.gelu.run(step_2).await?;
         let step_2 = self.linear_2.run(step_2).await?;
 
-        let step_2 = match step_2.data() {
-            TensorData::CpuData(array_base) => array_base,
-            TensorData::GpuData(_) => todo!(),
+        let step_2 = match backend {
+            Some(backend) => {
+                let shape = step_2.shape().clone();
+                gpu_buffer_to_array2(backend.clone().as_ref(), step_2.data_gpu_move(), shape)
+                    .await?
+            }
+            None => step_2.data_cpu_move(),
         };
 
-        // get data back to cpu
         Ok(step_2 + step)
     }
 }

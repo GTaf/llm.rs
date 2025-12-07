@@ -23,7 +23,7 @@ impl<T> From<&Array2<T>> for Shape {
 }
 
 pub struct Tensor {
-    data: TensorData,
+    pub data: TensorData,
     shape: Shape,
 }
 
@@ -47,6 +47,10 @@ impl Tensor {
         &self.data
     }
 
+    pub fn data_move(self) -> TensorData {
+        self.data
+    }
+
     pub fn data_gpu(&self) -> &Buffer {
         match &self.data {
             TensorData::CpuData(_) => todo!(),
@@ -54,9 +58,23 @@ impl Tensor {
         }
     }
 
+    pub fn data_gpu_move(self) -> Buffer {
+        match self.data {
+            TensorData::CpuData(_) => todo!(),
+            TensorData::GpuData(buffer) => buffer,
+        }
+    }
+
     pub fn data_cpu(&self) -> &Array2<f32> {
         match &self.data {
             TensorData::CpuData(array_base) => &array_base,
+            TensorData::GpuData(_) => todo!(),
+        }
+    }
+
+    pub fn data_cpu_move(self) -> Array2<f32> {
+        match self.data {
+            TensorData::CpuData(array_base) => array_base,
             TensorData::GpuData(_) => todo!(),
         }
     }
@@ -90,11 +108,7 @@ impl dyn Layer {
         let tensor = match input.data {
             TensorData::CpuData(array_base) => {
                 let result = self.run_cpu(&array_base)?;
-                let result_shape = result.shape();
-                let shape = Shape {
-                    columns: result_shape[0],
-                    rows: result_shape[1],
-                };
+                let shape = Shape::from(&result);
                 Tensor {
                     data: TensorData::CpuData(result),
                     shape,

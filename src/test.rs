@@ -1,13 +1,16 @@
-use ndarray::{Array1, Array2};
+use ndarray::{Array1, Array2, s};
 #[cfg(test)]
 use pollster::FutureExt;
 use safetensors::SafeTensors;
 use serde::Deserialize;
-use wgpu::{util::{BufferInitDescriptor, DeviceExt}};
 use std::fs;
 use tokenizers::tokenizer::Tokenizer;
+use wgpu::util::{BufferInitDescriptor, DeviceExt};
+
+use flume::bounded;
 
 use crate::{
+    gpu_backend::backend::gpu_buffer_to_array2,
     layers::traits::{Shape, Tensor},
     model::{LanguageModel, gpt2::GPT2},
 };
@@ -71,6 +74,9 @@ where
             result = false;
             if full_debug {
                 println!("{} : {} {}", k, x, y);
+            } else {
+                println!("{} : {} {}", k, x, y);
+                break;
             }
         }
     }
@@ -185,7 +191,6 @@ fn test_layer_norm2() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 #[test]
 fn test_layer_mlp_lin1() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
@@ -209,17 +214,15 @@ fn test_layer_mlp_lin1() -> anyhow::Result<()> {
         None => Tensor::new_cpu(output),
     };
     let mlp_output = attention_block.linear_1.run(output).block_on()?;
-    let mlp_output_data = mlp_output.data_gpu();
 
-    let mlp_output_range = mlp_output_data.get_mapped_range(..);
-    let raw_data: &[f32] = bytemuck::cast_slice(&mlp_output_range);
-    let shape = mlp_output.shape();
-    let mlp_output = Array2::from_shape_vec(
-        (shape.rows as usize, shape.columns as usize),
-        raw_data.to_vec(),
-    )
-    .unwrap();
-
+    let mlp_output = match model.backend() {
+        Some(backend) => {
+            let shape = mlp_output.shape().clone();
+            gpu_buffer_to_array2(backend.clone().as_ref(), mlp_output.data_gpu_move(), shape)
+                .block_on()?
+        }
+        None => mlp_output.data_cpu_move(),
+    };
 
     let tested_row = mlp_output.row(0);
     assert!(test_proximity_threshold(
@@ -241,10 +244,28 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
     let output = attention_block
         .layer_norm2
         .run_cpu(&(output + embeddings))?;
-    let output = Tensor::new_cpu(output);
+    let output = match model.backend() {
+        Some(backend) => {
+            let shape = Shape::from(&output);
+            let data = backend.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(output.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(data, shape)
+        }
+        None => Tensor::new_cpu(output),
+    };
     let mlp_output = attention_block.linear_1.run(output).block_on()?;
     let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
-    let mlp_output = mlp_output.data_cpu();
+    let mlp_output = match model.backend() {
+        Some(backend) => {
+            let shape = mlp_output.shape().clone();
+            gpu_buffer_to_array2(backend.clone().as_ref(), mlp_output.data_gpu_move(), shape)
+                .block_on()?
+        }
+        None => mlp_output.data_cpu_move(),
+    };
     let tested_row = mlp_output.row(0);
 
     println!(
@@ -252,6 +273,11 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
         tested_row.shape(),
         tested_row[0],
         emb.first_layer_gelu[0]
+    );
+    println!(
+        "{:?} {:?}",
+        tested_row.slice(s![0..10]),
+        &emb.first_layer_gelu[0..10]
     );
     assert!(test_proximity_threshold(
         tested_row,
@@ -272,11 +298,29 @@ fn test_layer_mlp_mlp2() -> anyhow::Result<()> {
     let output = attention_block
         .layer_norm2
         .run_cpu(&(output + embeddings))?;
-    let output = Tensor::new_cpu(output);
+    let output = match model.backend() {
+        Some(backend) => {
+            let shape = Shape::from(&output);
+            let data = backend.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(output.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(data, shape)
+        }
+        None => Tensor::new_cpu(output),
+    };
     let mlp_output = attention_block.linear_1.run(output).block_on()?;
     let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
     let mlp_output = attention_block.linear_2.run(mlp_output).block_on()?;
-    let mlp_output = mlp_output.data_cpu();
+    let mlp_output = match model.backend() {
+        Some(backend) => {
+            let shape = mlp_output.shape().clone();
+            gpu_buffer_to_array2(backend.clone().as_ref(), mlp_output.data_gpu_move(), shape)
+                .block_on()?
+        }
+        None => mlp_output.data_cpu_move(),
+    };
     let tested_row = mlp_output.row(0);
 
     println!(
@@ -302,11 +346,30 @@ fn test_layer_mlp_full_manual() -> anyhow::Result<()> {
     let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let attention_output = attention_block.attention_layer.run(&output).block_on()?;
     let intermediate = attention_output.clone() + &embeddings;
-    let norm2_output = Tensor::new_cpu(attention_block.layer_norm2.run_cpu(&intermediate)?);
+    let norm2_output = attention_block.layer_norm2.run_cpu(&intermediate)?;
+    let norm2_output = match model.backend() {
+        Some(backend) => {
+            let shape = Shape::from(&norm2_output);
+            let data = backend.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(norm2_output.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(data, shape)
+        }
+        None => Tensor::new_cpu(norm2_output),
+    };
     let mlp_output = attention_block.linear_1.run(norm2_output).block_on()?;
     let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
     let mlp_output = attention_block.linear_2.run(mlp_output).block_on()?;
-    let mlp_output = mlp_output.data_cpu();
+    let mlp_output = match model.backend() {
+        Some(backend) => {
+            let shape = mlp_output.shape().clone();
+            gpu_buffer_to_array2(backend.clone().as_ref(), mlp_output.data_gpu_move(), shape)
+                .block_on()?
+        }
+        None => mlp_output.data_cpu_move(),
+    };
     println!(
         "emb_rust : {:?}\n emb python : {:?}\n\nattn_out rust : {:?}\n attn out python : {:?}\n\nskip conn output rust : {:?}\n skip con python : {:?}\n\nmlp out rust : {:?}\nmlp_output_python : {:?}",
         embeddings.row(0)[0],
@@ -342,7 +405,9 @@ fn test_layer_full() -> anyhow::Result<()> {
     let (model, tokens, emb) = test_setup()?;
     let embeddings = model.embedding_layer.run(&tokens);
     let attention_block = model.attention_blocks.get(0).unwrap();
-    let output = attention_block.run(&embeddings, None).block_on()?;
+    let output = attention_block
+        .run(&embeddings, model.backend())
+        .block_on()?;
     let tested_row = output.row(0);
     println!(
         "Rust {:?}\nPython : {:?}",

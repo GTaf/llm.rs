@@ -9,8 +9,7 @@ use wgpu::{
 
 use crate::{
     gpu_backend::{
-        ComputeShape,
-        backend::{ComputePipeline, GpuBackend},
+        ComputeShape, backend::GpuBackend, pipelines::linear_pipeline::LinearComputePipeline,
     },
     layers::traits::Shape,
 };
@@ -45,7 +44,8 @@ fn test_gpu_matmul(
     let backend = Arc::new(GpuBackend::new().block_on()?);
     let weights = Array2::from_shape_vec((shape.k as usize, shape.n as usize), weights)?;
     let bias = Array1::from_shape_vec(shape.n as usize, bias)?;
-    let compute_pipeline = ComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias);
+    let compute_pipeline =
+        LinearComputePipeline::new_pipeline(backend.clone(), weights.clone(), bias);
     let input = Array2::from_shape_vec((shape.m as usize, shape.k as usize), input)?;
     let output = compute_pipeline
         .compute(
