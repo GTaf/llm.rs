@@ -1,5 +1,6 @@
 pub mod backend;
 pub mod pipelines;
+pub mod tensor;
 mod test;
 
 #[repr(C, align(16))]

@@ -6,10 +6,11 @@ use safetensors::SafeTensors;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
 use crate::gpu_backend::backend::{GpuBackend, gpu_buffer_to_array2};
+use crate::gpu_backend::tensor::Tensor;
 use crate::layers::gelu::Gelu;
 use crate::layers::layer_norm::LayerNorm;
 use crate::layers::linear_layer::GpuLinearLayer;
-use crate::layers::traits::{Layer, Shape, Tensor};
+use crate::layers::traits::{Layer, Shape};
 use crate::{
     layers::linear_layer::CpuLinearLayer, layers::linear_layer::LinearLayer,
     self_attention::SelfAttention,

@@ -7,10 +7,9 @@ use std::fs;
 use tokenizers::tokenizer::Tokenizer;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
-
 use crate::{
-    gpu_backend::backend::gpu_buffer_to_array2,
-    layers::traits::{Shape, Tensor},
+    gpu_backend::{backend::gpu_buffer_to_array2, tensor::Tensor},
+    layers::traits::Shape,
     model::{LanguageModel, gpt2::GPT2},
 };
 
@@ -240,7 +239,18 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
     let attention_block = model.attention_blocks.get(0).unwrap();
     let output = attention_block.layer_norm1.run_cpu(&embeddings)?;
     let output = attention_block.attention_layer.run(&output).block_on()?;
-    let output = output + embeddings;
+    let embeddings = match model.backend() {
+        Some(backend) => {
+            let shape = Shape::from(&embeddings);
+            let data = backend.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(embeddings.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(data, shape)
+        }
+        None => Tensor::new_cpu(embeddings),
+    };
     let output = match model.backend() {
         Some(backend) => {
             let shape = Shape::from(&output);
@@ -253,6 +263,7 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
         }
         None => Tensor::new_cpu(output),
     };
+    let output = Tensor::add(output, embeddings, model.backend()).block_on()?;
     let output = attention_block.layer_norm2.run(output).block_on()?;
 
     let mlp_output = attention_block.linear_1.run(output).block_on()?;

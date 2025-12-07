@@ -76,7 +76,7 @@ pub async fn gpu_buffer_to_array2(
     let range = temp_buffer.get_mapped_range(..);
     let raw_data: &[f32] = bytemuck::cast_slice(&range);
     Ok(Array2::from_shape_vec(
-        (shape.rows as usize, shape.columns as usize),
+        (shape.rows, shape.columns),
         raw_data.to_vec(),
     )?)
 }

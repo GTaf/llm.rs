@@ -7,8 +7,8 @@ use wgpu::{
 };
 
 use crate::{
-    gpu_backend::{ComputeShape, backend::GpuBackend},
-    layers::traits::{Shape, Tensor},
+    gpu_backend::{ComputeShape, backend::GpuBackend, tensor::Tensor},
+    layers::traits::Shape,
 };
 
 pub struct LinearComputePipeline {

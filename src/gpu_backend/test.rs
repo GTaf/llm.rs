@@ -27,7 +27,7 @@ fn gpubuffer_to_ndarray(input: Buffer, shape: Shape) -> Array2<f32> {
     let raw_data: &[f32] = bytemuck::cast_slice(&output_data);
 
     Array2::from_shape_vec(
-        (shape.rows as usize, shape.columns as usize),
+        (shape.rows, shape.columns),
         raw_data.to_vec(),
     )
     .unwrap()
