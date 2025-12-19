@@ -14,6 +14,7 @@ use crate::{
     layers::traits::Shape,
 };
 
+#[allow(dead_code)]
 fn ndarray_to_gpubuffer(input: &Array2<f32>, device: &Device) -> Buffer {
     device.create_buffer_init(&BufferInitDescriptor {
         label: Some("input_buffer"),
@@ -23,6 +24,7 @@ fn ndarray_to_gpubuffer(input: &Array2<f32>, device: &Device) -> Buffer {
 }
 
 // Main test function for matrix multiplication on GPU
+#[allow(dead_code)]
 fn test_gpu_matmul(
     shape: ComputeShape,
     weights: Vec<f32>,

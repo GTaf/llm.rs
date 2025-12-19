@@ -3,7 +3,7 @@ use std::sync::Arc;
 use ndarray::Array2;
 use wgpu::Buffer;
 
-use crate::{gpu_backend::{backend::{self, GpuBackend}, pipelines::element_wise_add::ElementWiseAddPipeline}, layers::traits::{Shape, TensorData}};
+use crate::{gpu_backend::{backend::GpuBackend, pipelines::element_wise_add::ElementWiseAddPipeline}, layers::traits::{Shape, TensorData}};
 
 
 pub struct Tensor {
