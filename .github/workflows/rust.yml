@@ -22,6 +22,9 @@ jobs:
       with:
         python-version: '3.x' # Installs the latest minor version of Python 3
 
+    - name: Install specific modules
+      run: pip install torch transformers
+
     # 2. Run your python script
     - name: Run pre-test Python script
       run: python test/test_output.py
