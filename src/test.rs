@@ -3,7 +3,7 @@ use ndarray::{Array1, s};
 use pollster::FutureExt;
 use safetensors::SafeTensors;
 use serde::Deserialize;
-use std::fs;
+use std::{fs, path::Path};
 use tokenizers::tokenizer::Tokenizer;
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 
@@ -44,11 +44,25 @@ struct Embeddings {
     first_layer_full_manual: Vec<f32>,
 }
 
+fn download_if_missing(url: &str, filename: &str) -> anyhow::Result<()> {
+    if !Path::new(filename).exists() {
+        println!("Downloading {}...", filename);
+        let bytes = reqwest::get(url).block_on()?.bytes().block_on()?;
+        fs::write(filename, &bytes)?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 fn test_setup() -> anyhow::Result<(GPT2, Vec<u32>, Embeddings)> {
     let input = "The main character of The lord of the rings is ";
     let data = fs::read_to_string("test/test_data.dump").unwrap();
     let emb: Embeddings = serde_json::from_str(&data).unwrap();
+
+    download_if_missing(
+        "https://huggingface.co/openai-community/gpt2/resolve/main/model.safetensors",
+        "model.safetensors"
+    )?;
 
     let bytes = fs::read("model.safetensors")?;
     let tensor_weights = SafeTensors::deserialize(&bytes)?;
