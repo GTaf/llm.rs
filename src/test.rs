@@ -147,7 +147,7 @@ fn test_layer_attention_linearity() -> anyhow::Result<()> {
     let output = attention_block
         .attention_layer
         .linear_expand
-        .run(output)
+        .run(&output)
         .block_on()?;
     let output_data = output.data_cpu();
     let tested_row = output_data.row(0);
@@ -225,7 +225,7 @@ fn test_layer_mlp_lin1() -> anyhow::Result<()> {
         }
         None => Tensor::new_cpu(output),
     };
-    let mlp_output = attention_block.linear_1.run(output).block_on()?;
+    let mlp_output = attention_block.linear_1.run(&output).block_on()?;
 
     let mlp_output = match model.backend() {
         Some(backend) => {
@@ -278,10 +278,10 @@ fn test_layer_mlp_gelu() -> anyhow::Result<()> {
         None => Tensor::new_cpu(output),
     };
     let output = Tensor::add(output, embeddings, model.backend()).block_on()?;
-    let output = attention_block.layer_norm2.run(output).block_on()?;
+    let output = attention_block.layer_norm2.run(&output).block_on()?;
 
-    let mlp_output = attention_block.linear_1.run(output).block_on()?;
-    let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
+    let mlp_output = attention_block.linear_1.run(&output).block_on()?;
+    let mlp_output = attention_block.gelu.run(&mlp_output).block_on()?;
     let mlp_output = match model.backend() {
         Some(backend) => {
             let shape = mlp_output.shape().clone();
@@ -334,9 +334,9 @@ fn test_layer_mlp_mlp2() -> anyhow::Result<()> {
         }
         None => Tensor::new_cpu(output),
     };
-    let mlp_output = attention_block.linear_1.run(output).block_on()?;
-    let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
-    let mlp_output = attention_block.linear_2.run(mlp_output).block_on()?;
+    let mlp_output = attention_block.linear_1.run(&output).block_on()?;
+    let mlp_output = attention_block.gelu.run(&mlp_output).block_on()?;
+    let mlp_output = attention_block.linear_2.run(&mlp_output).block_on()?;
     let mlp_output = match model.backend() {
         Some(backend) => {
             let shape = mlp_output.shape().clone();
@@ -383,9 +383,9 @@ fn test_layer_mlp_full_manual() -> anyhow::Result<()> {
         }
         None => Tensor::new_cpu(norm2_output),
     };
-    let mlp_output = attention_block.linear_1.run(norm2_output).block_on()?;
-    let mlp_output = attention_block.gelu.run(mlp_output).block_on()?;
-    let mlp_output = attention_block.linear_2.run(mlp_output).block_on()?;
+    let mlp_output = attention_block.linear_1.run(&norm2_output).block_on()?;
+    let mlp_output = attention_block.gelu.run(&mlp_output).block_on()?;
+    let mlp_output = attention_block.linear_2.run(&mlp_output).block_on()?;
     let mlp_output = match model.backend() {
         Some(backend) => {
             let shape = mlp_output.shape().clone();

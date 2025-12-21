@@ -34,7 +34,7 @@ impl Layer for RMSNorm {
         Ok(result)
     }
 
-    async fn run_gpu(&self, _: wgpu::Buffer, _: &Shape) -> anyhow::Result<(wgpu::Buffer, Shape)> {
+    async fn run_gpu(&self, _: &wgpu::Buffer, _: &Shape) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         todo!()
     }
 }

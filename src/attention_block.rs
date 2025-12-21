@@ -101,9 +101,9 @@ impl AttentionBlock {
     ) -> anyhow::Result<Array2<f32>> {
         let mut step = self.layer_norm1.run_cpu(input)?;
         step = self.attention_layer.run(&step).await?;
-        step += input;
         let step_t = step.clone();
-        let step_t: Tensor = if let Some(back) = backend.clone() {
+
+        let mut step_t: Tensor = if let Some(back) = backend.clone() {
             let shape = Shape::from(&step_t);
             let input_buffer = back.device.create_buffer_init(&BufferInitDescriptor {
                 label: Some("input_buffer"),
@@ -114,12 +114,27 @@ impl AttentionBlock {
         } else {
             Tensor::new_cpu(step_t)
         };
+        let input = input.clone();
+        let input: Tensor = if let Some(back) = backend.clone() {
+            let shape = Shape::from(&input);
+            let input_buffer = back.device.create_buffer_init(&BufferInitDescriptor {
+                label: Some("input_buffer"),
+                contents: bytemuck::cast_slice(input.as_slice().unwrap()),
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::STORAGE,
+            });
+            Tensor::new_gpu(input_buffer, shape)
+        } else {
+            Tensor::new_cpu(input)
+        };
+        step_t = Tensor::add(step_t, input, backend.clone()).await?;
 
-        let step_2 = self.layer_norm2.run(step_t).await?;
+        let step_2 = self.layer_norm2.run(&step_t).await?;
 
-        let step_2 = self.linear_1.run(step_2).await?;
-        let step_2 = self.gelu.run(step_2).await?;
-        let step_2 = self.linear_2.run(step_2).await?;
+        let step_2 = self.linear_1.run(&step_2).await?;
+        let step_2 = self.gelu.run(&step_2).await?;
+        let step_2 = self.linear_2.run(&step_2).await?;
+
+        let step_2 = Tensor::add(step_2, step_t, backend.clone()).await?;
 
         let step_2 = match backend {
             Some(backend) => {
@@ -130,6 +145,6 @@ impl AttentionBlock {
             None => step_2.data_cpu_move(),
         };
 
-        Ok(step_2 + step)
+        Ok(step_2)
     }
 }

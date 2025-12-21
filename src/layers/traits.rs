@@ -39,13 +39,13 @@ impl From<Buffer> for TensorData {
 #[async_trait]
 pub trait Layer: Send + Sync {
     fn run_cpu(&self, input: &Array2<f32>) -> anyhow::Result<Array2<f32>>;
-    async fn run_gpu(&self, input: Buffer, shape: &Shape) -> anyhow::Result<(Buffer, Shape)>;
+    async fn run_gpu(&self, input: &Buffer, shape: &Shape) -> anyhow::Result<(Buffer, Shape)>;
 }
 
 impl dyn Layer {
-    pub async fn run(&self, input: Tensor) -> anyhow::Result<Tensor> {
+    pub async fn run(&self, input: &Tensor) -> anyhow::Result<Tensor> {
         let shape = (*input.shape()).clone();
-        let tensor = match input.data {
+        let tensor = match &input.data {
             TensorData::CpuData(array_base) => {
                 let result = self.run_cpu(&array_base)?;
                 let shape = Shape::from(&result);

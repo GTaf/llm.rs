@@ -37,11 +37,11 @@ impl Layer for Gelu {
 
     async fn run_gpu(
         &self,
-        buffer: wgpu::Buffer,
+        buffer: &wgpu::Buffer,
         shape: &Shape,
     ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         match &self.pipeline {
-            Some(pipeline) => pipeline.compute(&buffer, shape).await,
+            Some(pipeline) => pipeline.compute(buffer, shape).await,
             None => panic!("Souldn't use GPU data with CPU layer"),
         }
     }

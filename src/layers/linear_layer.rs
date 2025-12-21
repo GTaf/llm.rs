@@ -64,10 +64,10 @@ impl GpuLinearLayer {
 impl GpuLinearLayer {
     async fn run(
         &self,
-        input: wgpu::Buffer,
+        input: &wgpu::Buffer,
         shape: &Shape,
     ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
-        self.compute_pipeline.compute(&input, shape).await
+        self.compute_pipeline.compute(input, shape).await
     }
 }
 
@@ -89,7 +89,7 @@ impl Layer for LinearLayer {
 
     async fn run_gpu(
         &self,
-        input: wgpu::Buffer,
+        input: &wgpu::Buffer,
         shape: &Shape,
     ) -> anyhow::Result<(wgpu::Buffer, Shape)> {
         if let LinearLayer::Gpu(layer) = self {
